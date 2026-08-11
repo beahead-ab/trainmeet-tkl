@@ -22,6 +22,7 @@ import {
   isFreight,
   isOnLine,
   movementKey,
+  stationTrackOccupants,
   stationTracks,
 } from "./runtime";
 import type { LocalMovementState, RuntimeSnapshot, Station, TrainRow } from "./types";
@@ -247,6 +248,7 @@ export default function App() {
   const { snapshot, source } = runtime;
   const station = snapshot.stations.find((candidate) => candidate.id === stationId) ?? snapshot.stations[0];
   const tracks = stationTracks(snapshot, station.id);
+  const trackOccupants = stationTrackOccupants(snapshot, station.id, movementState);
   const onLineNumbers = new Set(snapshot.train_positions.filter((position) => position.status === "connection").map((position) => position.train_number));
   const allStationTrains = dedupeTrains(snapshot.trains.filter((train) => train.station_id === station.id));
   const trains = allStationTrains.filter((train) => {
@@ -294,6 +296,7 @@ export default function App() {
             snapshot={snapshot}
             station={station}
             tracks={tracks}
+            trackOccupants={trackOccupants}
             selectedTrain={selectedTrain}
             onTrainSelect={selectTrain}
             onStationSelect={selectStation}
@@ -359,4 +362,3 @@ export default function App() {
     </div>
   );
 }
-

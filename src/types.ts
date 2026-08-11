@@ -124,3 +124,11 @@ export interface LocalMovementState {
   lineRequest: LineRequestStatus;
 }
 
+export interface StationTrackOccupant {
+  trainNumber: string;
+  track: string;
+  status: "positioned" | "ready" | "approaching" | "arrived" | "reserved";
+  arrow: "←" | "→" | "";
+  neighborCode?: string;
+  freight: boolean;
+}

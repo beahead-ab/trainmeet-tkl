@@ -468,6 +468,22 @@ select:focus-visible {
   background: repeating-linear-gradient(90deg, hsl(var(--destructive) / 0.35) 0 1.5px, transparent 1.5px 0.72rem);
 }
 
+.track-rail.is-requested::before {
+  border-color: hsl(var(--status-warning-border));
+}
+
+.track-rail.is-requested::after {
+  background: repeating-linear-gradient(90deg, hsl(var(--status-warning-border) / 0.35) 0 1.5px, transparent 1.5px 0.72rem);
+}
+
+.track-rail.is-reserved::before {
+  border-color: hsl(var(--status-ready-border));
+}
+
+.track-rail.is-reserved::after {
+  background: repeating-linear-gradient(90deg, hsl(var(--status-ready-border) / 0.3) 0 1.5px, transparent 1.5px 0.72rem);
+}
+
 .line-train {
   position: absolute;
   z-index: 3;
@@ -497,6 +513,73 @@ select:focus-visible {
 
 .line-train > span:first-child {
   font-size: 0.5rem;
+}
+
+.station-track-train {
+  position: absolute;
+  z-index: 4;
+  top: 50%;
+  left: 50%;
+  display: inline-flex;
+  height: 1rem;
+  max-width: calc(100% - 0.25rem);
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0 0.35rem;
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+  border: 1px solid hsl(var(--primary) / 0.5);
+  border-radius: 0.2rem;
+  color: hsl(var(--primary));
+  background: hsl(var(--background));
+  box-shadow: var(--shadow-sm);
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.station-track-train:hover {
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.3), var(--shadow-sm);
+}
+
+.station-track-train small {
+  max-width: 1.6rem;
+  overflow: hidden;
+  opacity: 0.8;
+  font-size: 0.5rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+}
+
+.station-track-train strong {
+  overflow: hidden;
+  font-size: inherit;
+  font-weight: 700;
+  text-overflow: ellipsis;
+}
+
+.station-track-train.is-ready,
+.station-track-train.is-reserved {
+  border-color: hsl(var(--status-warning-border) / 0.7);
+  box-shadow: 0 0 0 1px hsl(var(--status-warning-border) / 0.15), var(--shadow-sm);
+}
+
+.station-track-train.is-approaching {
+  border-color: hsl(var(--status-departure) / 0.55);
+  color: hsl(var(--status-departure));
+}
+
+.station-track-train.is-arrived {
+  border-color: hsl(var(--status-arrival) / 0.55);
+  color: hsl(var(--status-arrival));
+}
+
+.station-track-train.is-freight {
+  border-color: hsl(var(--status-goods) / 0.55);
+  color: hsl(var(--status-goods));
 }
 
 .station-center {

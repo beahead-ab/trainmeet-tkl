@@ -1,4 +1,10 @@
-import type { Connection, ConnectionState, RuntimeSnapshot, Station } from "../types";
+import type {
+  Connection,
+  ConnectionState,
+  RuntimeSnapshot,
+  Station,
+  StationTrackOccupant,
+} from "../types";
 
 type DiagramRow = "top" | "middle" | "bottom";
 
@@ -6,6 +12,7 @@ interface StationDiagramProps {
   snapshot: RuntimeSnapshot;
   station: Station;
   tracks: string[];
+  trackOccupants: StationTrackOccupant[];
   selectedTrain?: string | null;
   onTrainSelect: (trainNumber: string) => void;
   onStationSelect: (stationId: string) => void;
@@ -78,15 +85,19 @@ function TrackRail({
   outward,
   selected,
   onTrainSelect,
+  occupant,
+  connectionState,
 }: {
   active: boolean;
   train?: string | null;
   outward: boolean;
   selected: boolean;
   onTrainSelect: (number: string) => void;
+  occupant?: StationTrackOccupant;
+  connectionState?: ConnectionState["state"];
 }) {
   return (
-    <div className={`track-rail ${active ? "is-active" : ""}`}>
+    <div className={`track-rail ${active ? "is-active" : ""} ${connectionState ? `is-${connectionState}` : ""}`}>
       {train && (
         <TrainOnLine
           number={train}
@@ -94,6 +105,18 @@ function TrackRail({
           selected={selected}
           onClick={() => onTrainSelect(train)}
         />
+      )}
+      {occupant && (
+        <button
+          type="button"
+          className={`station-track-train is-${occupant.status} ${occupant.freight ? "is-freight" : ""}`}
+          onClick={() => onTrainSelect(occupant.trainNumber)}
+          aria-label={`Tåg ${occupant.trainNumber} på spår ${occupant.track}`}
+        >
+          {occupant.arrow && <span aria-hidden="true">{occupant.arrow}</span>}
+          {occupant.neighborCode && <small>{occupant.neighborCode.slice(0, 3)}</small>}
+          <strong>{occupant.trainNumber}</strong>
+        </button>
       )}
     </div>
   );
@@ -114,21 +137,23 @@ function ConnectionTracks({
 }) {
   const state = effectiveConnectionState(snapshot, segment.connection);
   const train = state.state === "occupied" ? state.train_number : null;
+  const caseTrain = state.train_number;
   const outward = state.from_station_id === currentStationId;
   if (segment.connection.track_type === "single") {
     return (
       <TrackRail
-        active={state.state !== "free"}
+        active={state.state === "occupied"}
         train={train}
         outward={outward}
         selected={selectedTrain === train}
+        connectionState={state.state}
         onTrainSelect={onTrainSelect}
       />
     );
   }
 
   const outwardOnTop = segment.side === "right";
-  const activeOnTop = train ? (outward ? outwardOnTop : !outwardOnTop) : false;
+  const activeOnTop = caseTrain ? (outward ? outwardOnTop : !outwardOnTop) : false;
   return (
     <div className="double-track">
       <TrackRail
@@ -136,6 +161,7 @@ function ConnectionTracks({
         train={activeOnTop ? train : null}
         outward={outward}
         selected={selectedTrain === train}
+        connectionState={activeOnTop ? state.state : "free"}
         onTrainSelect={onTrainSelect}
       />
       <TrackRail
@@ -143,6 +169,7 @@ function ConnectionTracks({
         train={!activeOnTop ? train : null}
         outward={outward}
         selected={selectedTrain === train}
+        connectionState={!activeOnTop ? state.state : "free"}
         onTrainSelect={onTrainSelect}
       />
     </div>
@@ -195,6 +222,7 @@ export function StationDiagram({
   snapshot,
   station,
   tracks,
+  trackOccupants,
   selectedTrain,
   onTrainSelect,
   onStationSelect,
@@ -252,7 +280,13 @@ export function StationDiagram({
           {tracks.map((track) => (
             <div className="station-track" key={track}>
               <span>{track}</span>
-              <TrackRail active={false} outward={false} selected={false} onTrainSelect={onTrainSelect} />
+              <TrackRail
+                active={false}
+                outward={false}
+                selected={false}
+                occupant={trackOccupants.find((candidate) => candidate.track === track)}
+                onTrainSelect={onTrainSelect}
+              />
             </div>
           ))}
         </div>
@@ -261,4 +295,3 @@ export function StationDiagram({
     </section>
   );
 }
-
