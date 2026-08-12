@@ -4,7 +4,7 @@ Fristående operatörsklient för TrainMeet Server. Projektet återskapar Charlo
 
 Projektet är öppet och publicerat under MIT-licensen. Koden kan användas, granskas, ändras och distribueras enligt villkoren i [LICENSE](LICENSE).
 
-> **Projektstatus:** Terminalgränssnitt, installation, första start, serveranslutning, stationsval, offline-cache och uppdatering är implementerade. Operativa trafikkommandon är ännu inte anslutna till TrainMeet Servers skriv-API. Använd därför inte denna version som ensam säkerhetsfunktion i trafikdrift.
+> **Projektstatus:** Terminalgränssnitt, installation, första start, serveranslutning, stationsval, trafikpass, tågrörelser, tågklarering, offline-cache och uppdatering är implementerade. TrainMeet Server är ensam auktoritet för trafikläget. Projektet är fortfarande under aktiv utveckling och är inte en järnvägssäkerhetsprodukt.
 
 ## Snabbaste installationen på Raspberry Pi
 
@@ -25,6 +25,19 @@ sudo reboot
 ```
 
 Efter omstart öppnas första-start-guiden automatiskt. Välj Wi-Fi vid behov, TrainMeet Server, träff/station, terminalnamn och skärmorientering. Därefter startar terminalen alltid direkt på den valda stationen.
+
+## Från första start till avslutat trafikpass
+
+Terminalen har ett avsiktligt tydligt start- och slutläge:
+
+1. **Anslut** terminalen till TrainMeet Server.
+2. **Koppla eller logga in.** En fysisk Pi kopplas en gång med serverns sexsiffriga kod. Webbläsarversionen använder serverns vanliga admininloggning.
+3. **Välj träff och station.** Den aktiva träffen kommer från servern och stationen sparas permanent i terminalprofilen.
+4. **Ta stationen i tjänst.** Operatören ser serverkontakt, träffklocka, spår, anslutningar, tidtabell och eventuella pågående trafikärenden innan trafikpasset startas.
+5. **Kör trafikpasset.** Pågående ärenden och de närmaste tågen visas direkt. Hela dagens tidtabell finns kvar utfällbar. Tågklarering och tågrörelser sparas centralt på servern.
+6. **Lämna över eller avsluta.** En överlämningsanteckning kan lämnas till nästa operatör. Vid avslut markeras stationen som obemannad och en sammanfattning visas.
+
+Om en station redan har ett aktivt trafikpass visas det före övertagandet. Operatören måste uttryckligen välja att ta över; inget pågående linjeärende försvinner.
 
 ## Ladda ner koden
 
@@ -171,6 +184,8 @@ Ta även bort raden med `trainmeet-tkl-kiosk` ur den vanliga användarens `~/.co
 
 TrainMeet Server är fortsatt ensam auktoritet. Terminalens lilla lokala tjänst hämtar `/v1/display`, sparar den senaste giltiga bilden och levererar den till UI:t. Om nätverket försvinner visas tydligt **Offline** och senaste kända läge, men alla trafikåtgärder spärras tills kontakten är tillbaka.
 
+Terminalen använder samma serverlogik som Tamboxarna. En begäran om tåg, ett godkännande, en avgång och en ankomst förändrar därför serverns gemensamma sträckstatus. Operatören kan lämna ett tågärende och fortsätta med nästa; ärendet tillhör sträckan och ligger kvar tills det avslutas.
+
 ## Typografi – verifierad mot den körande Charlottendal-vyn
 
 Beräknade stilar i den publicerade TrainMeet-sidan har jämförts med `TrainMeet-Design-Guide.md`:
@@ -192,9 +207,10 @@ Detta projekt paketerar Inter 400/500/600/700 lokalt med `@fontsource/inter`. D�
 ## Datagräns
 
 - TrainMeet Server är ensam auktoritet för klocka, tidtabell, linjer och tågens positioner.
-- TKL-klienten läser `/v1/display` och har ingen egen trafikdatabas.
+- TKL-klienten läser `/v1/display` och de särskilda `/v1/tkl/*`-gränssnitten men har ingen egen trafikdatabas.
 - Den inbyggda demoträffen används endast när servern inte går att nå.
-- Operativa skrivkommandon ska anslutas till TrainMeet Servers TKL-API. Previewlägets knapptryckningar stannar därför i webbläsaren och påverkar inte servern.
+- Trafikpass, tågrörelser, överlämningar och sträckkommandon sparas av TrainMeet Server i SQLite och återställs efter omstart.
+- Demolägets knapptryckningar stannar i webbläsaren och påverkar aldrig en riktig server.
 
 ## Arkitektur
 

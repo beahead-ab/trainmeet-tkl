@@ -25,7 +25,21 @@ DEFAULT_CONFIG = {
     "station_id": "",
     "station_name": "",
     "orientation": "portrait",
+    "client_id": "",
+    "access_token": "",
 }
+
+
+def error_message(error: BaseException) -> str:
+    """Keep the server's user-facing explanation when a proxied request fails."""
+    if isinstance(error, HTTPError):
+        try:
+            payload = json.loads(error.read().decode("utf-8"))
+            if isinstance(payload, dict) and payload.get("message"):
+                return str(payload["message"])
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError, TypeError):
+            pass
+    return str(error)
 
 
 class TerminalApplication:
@@ -59,9 +73,84 @@ class TerminalApplication:
             "station_id": station_id,
             "station_name": str(payload.get("station_name") or "").strip(),
             "orientation": orientation,
+            "client_id": str(payload.get("client_id") or self.read_config().get("client_id") or "").strip(),
+            "access_token": str(payload.get("access_token") or self.read_config().get("access_token") or "").strip(),
         }
         atomic_json_write(self.config_path, config)
         return config
+
+    def pair(self, server_url: str, pairing_code: str, terminal_name: str) -> dict:
+        base = normalize_server_url(server_url)
+        terminal_name = terminal_name.strip() or "TrainMeet TKL Terminal"
+        if not base or not pairing_code.strip():
+            raise ValueError("Server och anslutningskod måste anges")
+        client_id = str(self.read_config().get("client_id") or f"tkl-{os.uname().nodename}")[:64]
+        response = self.server_json(
+            "/v1/pair",
+            method="POST",
+            payload={
+                "pairing_code": pairing_code,
+                "client_id": client_id,
+                "display_name": terminal_name,
+                "device_kind": "tkl_terminal",
+            },
+            server_url=base,
+            authenticated=False,
+        )
+        token = str(response.get("access_token") or "")
+        if not token:
+            raise ValueError("Servern returnerade ingen terminalbehörighet")
+        current = self.read_config()
+        current.update(
+            {
+                "server_url": base,
+                "terminal_name": terminal_name,
+                "client_id": str(response.get("client_id") or client_id),
+                "access_token": token,
+            }
+        )
+        atomic_json_write(self.config_path, current)
+        return {"authenticated": True, "access_mode": "terminal", "client_id": current["client_id"]}
+
+    def auth_status(self) -> dict:
+        config = self.read_config()
+        return {
+            "authenticated": bool(config.get("access_token")),
+            "access_mode": "terminal",
+            "username": config.get("terminal_name") or "TrainMeet TKL Terminal",
+            "password_configured": True,
+            "must_change_password": False,
+        }
+
+    def server_json(
+        self,
+        path: str,
+        *,
+        method: str = "GET",
+        payload: dict | None = None,
+        server_url: str | None = None,
+        authenticated: bool = True,
+    ) -> dict:
+        config = self.read_config()
+        base = normalize_server_url(server_url or str(config.get("server_url") or ""))
+        if not base:
+            raise ValueError("Terminalen saknar TrainMeet Server")
+        headers = {"Accept": "application/json", "User-Agent": "TrainMeet-TKL-Terminal/0.3"}
+        if authenticated:
+            token = str(config.get("access_token") or "")
+            if not token:
+                raise PermissionError("Terminalen är inte parkopplad")
+            headers["Authorization"] = f"Bearer {token}"
+        body = None
+        if payload is not None:
+            body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            headers["Content-Type"] = "application/json"
+        request = Request(f"{base}{path}", data=body, headers=headers, method=method)
+        with urlopen(request, timeout=6) as response:
+            value = json.loads(response.read().decode("utf-8"))
+        if not isinstance(value, dict):
+            raise ValueError("Servern returnerade ett ogiltigt svar")
+        return value
 
     def fetch_runtime(self, server_url: str | None = None) -> dict:
         base = normalize_server_url(server_url or str(self.read_config().get("server_url") or ""))
@@ -262,6 +351,17 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/terminal/config":
             self.send_json(HTTPStatus.OK, self.application.read_config())
             return
+        if path == "/terminal/auth":
+            self.send_json(HTTPStatus.OK, self.application.auth_status())
+            return
+        if path == "/terminal/tkl/context":
+            try:
+                query = urlparse(self.path).query
+                suffix = f"?{query}" if query else ""
+                self.send_json(HTTPStatus.OK, self.application.server_json(f"/v1/tkl/context{suffix}"))
+            except (HTTPError, URLError, TimeoutError, OSError, ValueError, PermissionError) as error:
+                self.send_json(HTTPStatus.BAD_GATEWAY, {"message": error_message(error)})
+            return
         if path == "/terminal/runtime":
             try:
                 self.send_json(HTTPStatus.OK, self.application.runtime_result())
@@ -276,6 +376,26 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/terminal/wifi":
             self.send_json(HTTPStatus.OK, {"networks": self.application.wifi_networks()})
+            return
+        if path == "/terminal/pair":
+            try:
+                payload = self.read_json()
+                result = self.application.pair(
+                    str(payload.get("server_url") or ""),
+                    str(payload.get("pairing_code") or ""),
+                    str(payload.get("terminal_name") or ""),
+                )
+                self.send_json(HTTPStatus.OK, result)
+            except (HTTPError, URLError, TimeoutError, OSError, ValueError, PermissionError) as error:
+                self.send_json(HTTPStatus.UNAUTHORIZED, {"message": error_message(error)})
+            return
+        if path in {"/terminal/tkl/shift/start", "/terminal/tkl/shift/finish", "/terminal/tkl/movement", "/terminal/tkl/line"}:
+            try:
+                payload = self.read_json()
+                remote_path = path.removeprefix("/terminal")
+                self.send_json(HTTPStatus.OK, self.application.server_json(f"/v1{remote_path}", method="POST", payload=payload))
+            except (HTTPError, URLError, TimeoutError, OSError, ValueError, PermissionError) as error:
+                self.send_json(HTTPStatus.BAD_GATEWAY, {"message": error_message(error)})
             return
         self.serve_static(path)
 

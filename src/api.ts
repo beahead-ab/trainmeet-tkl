@@ -16,6 +16,54 @@ export interface TerminalConfig {
   station_id: string;
   station_name?: string;
   orientation: "portrait" | "landscape";
+  client_id?: string;
+  access_token?: string;
+}
+
+export interface AuthStatus {
+  authenticated: boolean;
+  access_mode: "local" | "external" | "terminal";
+  username: string;
+  password_configured: boolean;
+  must_change_password: boolean;
+}
+
+export interface TklShift {
+  shift_id: string;
+  operator_name: string;
+  terminal_name: string;
+  status: "active" | "handover" | "closed";
+  started_at: string;
+  ended_at?: string | null;
+  handover_note?: string | null;
+  updated_at: string;
+}
+
+export interface TklContext {
+  protocol_version: number;
+  publication_id: string;
+  meet: RuntimeSnapshot["meet"];
+  active_day: string;
+  station: RuntimeSnapshot["stations"][number];
+  terminal: { client_id: string; display_name: string; kind: string };
+  preflight: {
+    server_online: boolean;
+    clock_configured: boolean;
+    clock_running: boolean;
+    track_count: number;
+    connection_count: number;
+    train_count: number;
+    open_connection_count: number;
+  };
+  shift: TklShift | null;
+  movements: Record<string, {
+    arrival: "none" | "approaching" | "arrived";
+    departure: "none" | "positioned" | "ready" | "departed";
+    actualTrack?: string | null;
+    updated_by?: string;
+    updated_at?: string;
+  }>;
+  connection_states: RuntimeSnapshot["connection_states"];
 }
 
 export interface DiscoveredServer {
@@ -47,6 +95,12 @@ const browserConfigKey = "trainmeet-tkl.browser-config";
 const requestTimeout = 4000;
 const runtimeCacheKey = "trainmeet-tkl.last-runtime";
 
+class APIError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+  }
+}
+
 async function readJSON<T>(url: string, init?: RequestInit): Promise<T> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), requestTimeout);
@@ -57,11 +111,112 @@ async function readJSON<T>(url: string, init?: RequestInit): Promise<T> {
       ...init,
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) {
+      let message = `HTTP ${response.status}`;
+      try {
+        const payload = await response.json() as { message?: string };
+        message = payload.message || message;
+      } catch {
+        // Keep the HTTP status when the server did not return JSON.
+      }
+      throw new APIError(response.status, message);
+    }
     return await response.json() as T;
   } finally {
     window.clearTimeout(timeout);
   }
+}
+
+async function terminalOrServer<T>(terminalPath: string, serverPath: string, init?: RequestInit): Promise<T> {
+  try {
+    return await readJSON<T>(terminalPath, init);
+  } catch (error) {
+    if (!(error instanceof APIError) || error.status !== 404) throw error;
+    return readJSON<T>(serverPath, init);
+  }
+}
+
+export async function loadAuthStatus(): Promise<AuthStatus> {
+  return terminalOrServer<AuthStatus>("/terminal/auth", "/v1/auth/status");
+}
+
+export async function loginAdmin(username: string, password: string): Promise<AuthStatus> {
+  return readJSON<AuthStatus>("/v1/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+}
+
+export async function pairTerminal(serverUrl: string, pairingCode: string, terminalName: string): Promise<AuthStatus> {
+  return readJSON<AuthStatus>("/terminal/pair", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ server_url: serverUrl, pairing_code: pairingCode, terminal_name: terminalName }),
+  });
+}
+
+export async function loadTklContext(stationId: string): Promise<TklContext> {
+  const query = new URLSearchParams({ station_id: stationId }).toString();
+  return terminalOrServer<TklContext>(`/terminal/tkl/context?${query}`, `/v1/tkl/context?${query}`);
+}
+
+export async function startTklShift(input: {
+  station_id: string;
+  operator_name: string;
+  terminal_name: string;
+  take_over?: boolean;
+}): Promise<TklShift> {
+  const response = await terminalOrServer<{ shift: TklShift }>("/terminal/tkl/shift/start", "/v1/tkl/shift/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return response.shift;
+}
+
+export async function finishTklShift(input: {
+  station_id: string;
+  shift_id: string;
+  status: "handover" | "closed";
+  note?: string;
+}): Promise<TklShift> {
+  const response = await terminalOrServer<{ shift: TklShift }>("/terminal/tkl/shift/finish", "/v1/tkl/shift/finish", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return response.shift;
+}
+
+export async function updateTklMovement(input: {
+  station_id: string;
+  movement_id: string;
+  arrival: "none" | "approaching" | "arrived";
+  departure: "none" | "positioned" | "ready" | "departed";
+  actual_track?: string;
+  event_type: string;
+}): Promise<TklContext["movements"][string]> {
+  const response = await terminalOrServer<{ movement: TklContext["movements"][string] }>("/terminal/tkl/movement", "/v1/tkl/movement", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return response.movement;
+}
+
+export async function performTklLineAction(input: {
+  station_id: string;
+  connection_id: string;
+  train_number: string;
+  action: "request" | "accept" | "reject" | "cancel" | "depart" | "arrive";
+}): Promise<RuntimeSnapshot["connection_states"][number]> {
+  const response = await terminalOrServer<{ connection: RuntimeSnapshot["connection_states"][number] }>("/terminal/tkl/line", "/v1/tkl/line", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return response.connection;
 }
 
 export async function loadTerminalConfig(): Promise<TerminalConfig> {

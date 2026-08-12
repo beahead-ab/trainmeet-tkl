@@ -18,7 +18,8 @@ interface TrainCardProps {
   selected: boolean;
   actionsDisabled?: boolean;
   onSelect: (trainNumber: string) => void;
-  onMovementChange: (next: LocalMovementState) => void;
+  onMovementChange: (next: LocalMovementState) => void | Promise<void>;
+  onLineRequest: () => Promise<"pending" | "confirmed">;
 }
 
 function DirectionIcon({ train }: { train: TrainRow }) {
@@ -130,8 +131,11 @@ export function TrainCard({
   actionsDisabled = false,
   onSelect,
   onMovementChange,
+  onLineRequest,
 }: TrainCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState("");
   const neighbors = useMemo(() => routeNeighbors(snapshot, train), [snapshot, train]);
   const from = neighbors.from?.name ?? train.arrival_from;
   const to = neighbors.to?.name ?? train.departure_to;
@@ -146,7 +150,7 @@ export function TrainCard({
     if (selected) setExpanded(true);
   }, [selected]);
 
-  const runAction = () => {
+  const runAction = async () => {
     if (!action || departureBlocked || actionsDisabled) return;
     const next: LocalMovementState = {
       ...movement,
@@ -156,17 +160,31 @@ export function TrainCard({
     if (dispatchMode === "direct" && action.departure === "ready") {
       next.lineRequest = "confirmed";
     }
-    onMovementChange(next);
-    setExpanded(false);
+    setBusy(true);
+    setActionError("");
+    try {
+      await onMovementChange(next);
+      setExpanded(false);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Åtgärden kunde inte sparas.");
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const requestLine = () => {
+  const requestLine = async () => {
     if (actionsDisabled) return;
-    onMovementChange({ ...movement, lineRequest: "pending" });
-    window.setTimeout(() => {
-      onMovementChange({ ...movement, lineRequest: "confirmed" });
-    }, 700);
-    setExpanded(false);
+    setBusy(true);
+    setActionError("");
+    try {
+      const status = await onLineRequest();
+      await onMovementChange({ ...movement, lineRequest: status });
+      setExpanded(false);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Klareringen kunde inte begäras.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const primaryTime = train.arrival_time || train.departure_time || train.sort_time;
@@ -233,21 +251,23 @@ export function TrainCard({
               <button
                 type="button"
                 className="primary-action"
-                disabled={actionsDisabled || departureBlocked || (freightMode && action.departure === "departed")}
-                onClick={runAction}
+                disabled={busy || actionsDisabled || departureBlocked || (freightMode && action.departure === "departed")}
+                onClick={() => { void runAction(); }}
               >
-                {action.label}
+                {busy ? "Sparar …" : action.label}
               </button>
               {departureBlocked && <span className="action-help">Klarering krävs före avgång</span>}
             </div>
           )}
 
+          {actionError && <span className="action-help is-error">{actionError}</span>}
+
           {dispatchMode === "clearance" && movement.departure === "ready" && (
             <button
               type="button"
               className={`line-request-action is-${movement.lineRequest}`}
-              onClick={requestLine}
-              disabled={actionsDisabled || movement.lineRequest === "pending" || movement.lineRequest === "confirmed"}
+              onClick={() => { void requestLine(); }}
+              disabled={busy || actionsDisabled || movement.lineRequest === "pending" || movement.lineRequest === "confirmed"}
             >
               <SendHorizontal size={16} />
               {movement.lineRequest === "pending" && "Väntar på klarering"}
