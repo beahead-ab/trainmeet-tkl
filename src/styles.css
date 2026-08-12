@@ -192,6 +192,19 @@ select:focus-visible {
   margin: 0 auto;
 }
 
+.offline-banner {
+  position: sticky;
+  z-index: 70;
+  top: 0;
+  padding: 0.45rem 1rem;
+  color: hsl(var(--foreground));
+  background: hsl(var(--status-warning-bg));
+  border-bottom: 1px solid hsl(var(--status-warning-border) / 0.45);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+}
+
 .app-header {
   position: sticky;
   z-index: 50;
@@ -1233,6 +1246,219 @@ select:focus-visible {
   border-radius: 1rem;
   color: hsl(var(--primary-foreground));
   background: hsl(var(--primary));
+}
+
+.loading-mark.is-offline {
+  color: hsl(var(--destructive));
+  background: hsl(var(--destructive) / 0.1);
+}
+
+.retry-button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0 1.25rem;
+  border-radius: 9999px;
+  color: hsl(var(--background));
+  background: hsl(var(--foreground));
+  cursor: pointer;
+}
+
+.retry-button svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.setup-view {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 2rem 1rem;
+  background: hsl(var(--v2-bg));
+}
+
+.setup-card {
+  width: min(38rem, 100%);
+  padding: 2rem;
+  border: 1px solid hsl(var(--foreground) / 0.06);
+  border-radius: 1.5rem;
+  background: hsl(var(--v2-card));
+  box-shadow: var(--shadow-md);
+}
+
+.setup-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 2rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.setup-brand svg {
+  width: 2rem;
+  height: 2rem;
+  padding: 0.45rem;
+  border-radius: 0.65rem;
+  color: hsl(var(--primary-foreground));
+  background: hsl(var(--primary));
+}
+
+.setup-card h1 {
+  margin: 0.35rem 0 0;
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+}
+
+.setup-intro {
+  margin: 1rem 0 2rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.95rem;
+  font-weight: 300;
+}
+
+.setup-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.setup-fields label,
+.setup-fields fieldset {
+  display: flex;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.setup-fields label > span,
+.setup-fields legend {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.setup-fields input,
+.setup-fields select {
+  width: 100%;
+  min-width: 0;
+  height: 3rem;
+  padding: 0 0.9rem;
+  border: 1px solid hsl(var(--input));
+  border-radius: 0.85rem;
+  background: hsl(var(--background));
+}
+
+.server-field {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+}
+
+.server-field button,
+.setup-finish {
+  display: inline-flex;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0 1.15rem;
+  border-radius: 9999px;
+  color: hsl(var(--background));
+  background: hsl(var(--foreground));
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.server-field button:disabled,
+.setup-finish:disabled {
+  opacity: 0.45;
+  cursor: wait;
+}
+
+.server-field svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.meet-found {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  color: hsl(var(--status-arrival));
+  background: hsl(var(--status-arrival) / 0.08);
+}
+
+.meet-found svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.meet-found span {
+  display: flex;
+  flex-direction: column;
+}
+
+.meet-found strong {
+  color: hsl(var(--foreground));
+  font-size: 0.875rem;
+}
+
+.meet-found small {
+  color: hsl(var(--muted-foreground));
+}
+
+.orientation-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.orientation-options button {
+  min-height: 3rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.85rem;
+  background: hsl(var(--background));
+  cursor: pointer;
+}
+
+.orientation-options button.is-selected {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 1px hsl(var(--primary));
+}
+
+.setup-message {
+  min-height: 1.25rem;
+  margin: 1rem 0;
+  color: hsl(var(--destructive));
+  font-size: 0.75rem;
+}
+
+.setup-message.is-success {
+  color: hsl(var(--status-arrival));
+}
+
+.setup-finish {
+  width: 100%;
+}
+
+@media (max-width: 520px) {
+  .setup-card {
+    padding: 1.5rem;
+  }
+
+  .server-field {
+    grid-template-columns: 1fr;
+  }
 }
 
 .loading-mark svg {

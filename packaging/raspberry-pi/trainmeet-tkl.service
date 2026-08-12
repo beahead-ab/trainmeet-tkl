@@ -1,0 +1,21 @@
+[Unit]
+Description=TrainMeet TKL Terminal
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=trainmeet-tkl
+Group=trainmeet-tkl
+WorkingDirectory=/var/lib/trainmeet-tkl
+ExecStart=/usr/bin/python3 /opt/trainmeet-tkl/terminal/trainmeet_tkl_terminal.py --web-root /opt/trainmeet-tkl/web --state-dir /var/lib/trainmeet-tkl
+Restart=always
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/trainmeet-tkl
+
+[Install]
+WantedBy=multi-user.target

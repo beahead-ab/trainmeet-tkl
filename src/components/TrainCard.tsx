@@ -16,6 +16,7 @@ interface TrainCardProps {
   defaultExpanded?: boolean;
   freightMode: boolean;
   selected: boolean;
+  actionsDisabled?: boolean;
   onSelect: (trainNumber: string) => void;
   onMovementChange: (next: LocalMovementState) => void;
 }
@@ -126,6 +127,7 @@ export function TrainCard({
   defaultExpanded = false,
   freightMode,
   selected,
+  actionsDisabled = false,
   onSelect,
   onMovementChange,
 }: TrainCardProps) {
@@ -145,7 +147,7 @@ export function TrainCard({
   }, [selected]);
 
   const runAction = () => {
-    if (!action || departureBlocked) return;
+    if (!action || departureBlocked || actionsDisabled) return;
     const next: LocalMovementState = {
       ...movement,
       arrival: action.arrival ?? movement.arrival,
@@ -159,6 +161,7 @@ export function TrainCard({
   };
 
   const requestLine = () => {
+    if (actionsDisabled) return;
     onMovementChange({ ...movement, lineRequest: "pending" });
     window.setTimeout(() => {
       onMovementChange({ ...movement, lineRequest: "confirmed" });
@@ -199,6 +202,7 @@ export function TrainCard({
             <select
               id={`track-${train.id}`}
               value={movement.actualTrack || train.track}
+              disabled={actionsDisabled}
               onChange={(event) => onMovementChange({ ...movement, actualTrack: event.target.value })}
             >
               {availableTracks.map((track) => <option key={track}>{track}</option>)}
@@ -229,7 +233,7 @@ export function TrainCard({
               <button
                 type="button"
                 className="primary-action"
-                disabled={departureBlocked || (freightMode && action.departure === "departed")}
+                disabled={actionsDisabled || departureBlocked || (freightMode && action.departure === "departed")}
                 onClick={runAction}
               >
                 {action.label}
@@ -243,7 +247,7 @@ export function TrainCard({
               type="button"
               className={`line-request-action is-${movement.lineRequest}`}
               onClick={requestLine}
-              disabled={movement.lineRequest === "pending" || movement.lineRequest === "confirmed"}
+              disabled={actionsDisabled || movement.lineRequest === "pending" || movement.lineRequest === "confirmed"}
             >
               <SendHorizontal size={16} />
               {movement.lineRequest === "pending" && "Väntar på klarering"}
@@ -263,4 +267,3 @@ export function TrainCard({
     </article>
   );
 }
-

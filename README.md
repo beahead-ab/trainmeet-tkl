@@ -19,7 +19,45 @@ Klienten försöker läsa `/v1/display` från TrainMeet Server. Vites utveckling
 npm run build
 ```
 
-`dist/` är en helt statisk applikation. Den är avsedd att distribueras från TrainMeet Server under `/tkl`, men kan också köras från en separat webbserver eller container.
+`dist/` är en helt statisk applikation. Samma byggda UI distribueras på två sätt:
+
+- **TrainMeet Server:** publiceras under `/tkl/` för datorer, surfplattor och test.
+- **TrainMeet TKL Terminal:** installeras tillsammans med det lokala apparatlagret på en separat Raspberry Pi och öppnas automatiskt i Chromium-kiosk.
+
+Det är alltså inte två TKL-applikationer. Serverläget och den fysiska terminalen använder samma React-, CSS- och typsnittsfiler.
+
+För att bygga och lägga samma UI i ett lokalt TrainMeet Server-repo:
+
+```bash
+npm run build:server
+```
+
+TrainMeet Server publicerar därefter vyn på `http://SERVER:8787/tkl/`. Första gången väljer webbläsaren station och sparar valet lokalt. Den inställningen påverkar inte en fysisk TKL-terminals permanenta profil.
+
+## Raspberry Pi-terminal
+
+Målplattformen är Raspberry Pi 5 med Raspberry Pi OS Bookworm 64-bit och pekskärm. Bygg först paketet och kör installationen:
+
+```bash
+npm ci
+npm run build
+sudo ./scripts/install-raspberry-pi.sh
+```
+
+Installationen lägger in:
+
+- den statiska TKL-vyn i `/opt/trainmeet-tkl/web`,
+- det lokala apparatlagret på `127.0.0.1:8790`,
+- en systemd-tjänst med automatisk återstart,
+- Chromium i kantlöst kioskläge,
+- Openbox utan panel, skärmsläckare eller synlig muspekare,
+- stående skärmläge som standard.
+
+Vid första starten väljer operatören TrainMeet Server, aktiv träff/station, terminalnamn och skärmorientering. Profilen sparas i `/var/lib/trainmeet-tkl/terminal-config.json`. Därefter öppnar apparaten alltid sin tilldelade station direkt.
+
+## Drift och offline
+
+TrainMeet Server är fortsatt ensam auktoritet. Terminalens lilla lokala tjänst hämtar `/v1/display`, sparar den senaste giltiga bilden och levererar den till UI:t. Om nätverket försvinner visas tydligt **Offline** och senaste kända läge, men alla trafikåtgärder spärras tills kontakten är tillbaka.
 
 ## Typografi – verifierad mot den körande Charlottendal-vyn
 
@@ -45,4 +83,3 @@ Detta projekt paketerar Inter 400/500/600/700 lokalt med `@fontsource/inter`. D�
 - TKL-klienten läser `/v1/display` och har ingen egen trafikdatabas.
 - Den inbyggda demoträffen används endast när servern inte går att nå.
 - Operativa skrivkommandon ska anslutas till TrainMeet Servers TKL-API. Previewlägets knapptryckningar stannar därför i webbläsaren och påverkar inte servern.
-

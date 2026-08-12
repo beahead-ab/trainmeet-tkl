@@ -3,5 +3,7 @@ dist/
 .DS_Store
 *.local
 *.tsbuildinfo
+__pycache__/
+*.pyc
 vite.config.js
 vite.config.d.ts
