@@ -452,6 +452,11 @@ function ShiftStartView({
             <UserRound /><span><strong>Pågående trafikpass</strong><small>{active.operator_name} · startat {new Date(active.started_at).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}</small></span>
           </div>
         )}
+        {!active && context.previous_shift?.status === "handover" && context.previous_shift.handover_note && (
+          <div className="active-shift-notice is-handover">
+            <MessageCircle /><span><strong>Från föregående operatör</strong><small>{context.previous_shift.handover_note}</small></span>
+          </div>
+        )}
         <div className="preflight-list">
           {checks.map((check) => <div key={check.label}><span className={check.ok ? "is-ok" : "is-warning"}>{check.ok ? <Check /> : <Clock3 />}</span><strong>{check.label}</strong><small>{check.detail}</small></div>)}
         </div>
@@ -849,6 +854,7 @@ export default function App() {
             open_connection_count: runtime.snapshot.connection_states.filter((state) => state.state !== "free").length,
           },
           shift: null,
+          previous_shift: null,
           movements: {},
           connection_states: runtime.snapshot.connection_states,
         });

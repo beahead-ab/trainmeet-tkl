@@ -56,6 +56,7 @@ export interface TklContext {
     open_connection_count: number;
   };
   shift: TklShift | null;
+  previous_shift: TklShift | null;
   movements: Record<string, {
     arrival: "none" | "approaching" | "arrived";
     departure: "none" | "positioned" | "ready" | "departed";
