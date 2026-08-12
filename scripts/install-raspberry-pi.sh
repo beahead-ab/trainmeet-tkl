@@ -59,7 +59,7 @@ systemctl daemon-reload
 systemctl restart polkit.service || true
 systemctl enable --now trainmeet-tkl.service
 systemctl set-default graphical.target
-raspi-config nonint do_wayland W3 || true
+raspi-config nonint do_wayland W2 || true
 raspi-config nonint do_boot_behaviour B4 || true
 raspi-config nonint do_boot_wait 0 || true
 raspi-config nonint do_blanking 1 || true
