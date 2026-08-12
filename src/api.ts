@@ -1,6 +1,6 @@
 import type { RuntimeSnapshot } from "./types";
 
-export type RuntimeSource = "server" | "cache" | "demo";
+export type RuntimeSource = "server" | "cache";
 
 export interface RuntimeResult {
   snapshot: RuntimeSnapshot;
@@ -221,16 +221,6 @@ export async function performTklLineAction(input: {
 }
 
 export async function loadTerminalConfig(): Promise<TerminalConfig> {
-  if (new URLSearchParams(window.location.search).get("demo") === "1") {
-    return {
-      configured: true,
-      terminal_name: "Charlottendal TKL 1",
-      server_url: "demo",
-      station_id: "4d1e3bfe-0db9-4490-8ef0-3eb85f01230c",
-      station_name: "Charlottendal",
-      orientation: "portrait",
-    };
-  }
   try {
     return await readJSON<TerminalConfig>("/terminal/config");
   } catch {
@@ -343,15 +333,6 @@ function remember(snapshot: RuntimeSnapshot) {
 }
 
 export async function loadRuntime(): Promise<RuntimeResult> {
-  const forceDemo = new URLSearchParams(window.location.search).get("demo") === "1";
-  if (forceDemo) {
-    return {
-      snapshot: await readJSON<RuntimeSnapshot>(`${import.meta.env.BASE_URL}demo-runtime.json`),
-      source: "demo",
-      connected: false,
-    };
-  }
-
   try {
     const terminalResult = await readJSON<RuntimeResult>("/terminal/runtime");
     if (terminalResult.source === "server") remember(terminalResult.snapshot);

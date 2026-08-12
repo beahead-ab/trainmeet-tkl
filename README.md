@@ -62,7 +62,7 @@ npm run dev
 
 Öppna `http://127.0.0.1:8790`.
 
-Klienten försöker läsa `/v1/display` från TrainMeet Server. Vites utvecklingsserver skickar dessa anrop vidare till `http://127.0.0.1:8787`. Om servern inte kan nås används den inbyggda, verkliga demoträffen **Hela huset fullt med tåg** med Charlottendal som vald station.
+Klienten försöker läsa `/v1/display` från TrainMeet Server. Vites utvecklingsserver skickar dessa anrop vidare till `http://127.0.0.1:8787`. Om servern inte kan nås visas endast senast hämtade verkliga driftläge och alla trafikåtgärder spärras. Saknas tidigare driftdata visas anslutningsfelet.
 
 ## Produktion
 
@@ -208,9 +208,9 @@ Detta projekt paketerar Inter 400/500/600/700 lokalt med `@fontsource/inter`. D�
 
 - TrainMeet Server är ensam auktoritet för klocka, tidtabell, linjer och tågens positioner.
 - TKL-klienten läser `/v1/display` och de särskilda `/v1/tkl/*`-gränssnitten men har ingen egen trafikdatabas.
-- Den inbyggda demoträffen används endast när servern inte går att nå.
+- TKL innehåller ingen demoträff eller annan inbyggd trafikkonfiguration.
 - Trafikpass, tågrörelser, överlämningar och sträckkommandon sparas av TrainMeet Server i SQLite och återställs efter omstart.
-- Demolägets knapptryckningar stannar i webbläsaren och påverkar aldrig en riktig server.
+- Cachelagrad information är skrivskyddad och kan aldrig påverka serverns trafikläge.
 
 ## Arkitektur
 

@@ -15,7 +15,7 @@ cd "$PROJECT_DIR"
 npm run build
 mkdir -p "$TARGET/assets"
 find "$TARGET/assets" -mindepth 1 -maxdepth 1 -type f -delete
-cp dist/index.html dist/manifest.webmanifest dist/tkl-icon.svg dist/demo-runtime.json "$TARGET/"
+cp dist/index.html dist/manifest.webmanifest dist/tkl-icon.svg "$TARGET/"
 cp dist/assets/* "$TARGET/assets/"
 
 echo "TrainMeet TKL installerades i TrainMeet Server under /tkl/."

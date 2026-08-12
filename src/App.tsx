@@ -94,7 +94,7 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
   const [wifiPassword, setWifiPassword] = useState("");
   const [wifiMessage, setWifiMessage] = useState("");
   const [auth, setAuth] = useState<AuthStatus | null>(null);
-  const [username, setUsername] = useState("admin");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [pairingCode, setPairingCode] = useState("");
 
@@ -162,9 +162,9 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
       try {
         const status = await loadAuthStatus();
         setAuth(status);
-        setUsername(status.username || "admin");
+        setUsername(status.username || "");
       } catch {
-        setAuth({ authenticated: false, access_mode: "external", username: "admin", password_configured: true, must_change_password: false });
+        setAuth({ authenticated: false, access_mode: "external", username: "", password_configured: true, must_change_password: false });
       }
     } catch {
       setSnapshot(null);
@@ -364,7 +364,7 @@ function AuthenticationView({
   onAuthenticated: (status: AuthStatus) => void;
   onReconfigure: () => void;
 }) {
-  const [username, setUsername] = useState(status.username || "admin");
+  const [username, setUsername] = useState(status.username || "");
   const [password, setPassword] = useState("");
   const [pairingCode, setPairingCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -585,7 +585,7 @@ function Header({
           <Clock3 />
           {formatClock(snapshot.clock.time)}
         </span>
-        <span className={`connection-indicator ${source === "server" ? "is-online" : "is-demo"}`} title={source === "server" ? "Ansluten till TrainMeet Server" : source === "cache" ? "Offline – senast kända läge" : "Inbyggd demoträff"}>
+        <span className={`connection-indicator ${source === "server" ? "is-online" : "is-offline"}`} title={source === "server" ? "Ansluten till TrainMeet Server" : "Offline – senast kända läge"}>
           <Wifi />
         </span>
         <button type="button" className="icon-button message-button" aria-label="Meddelanden">
@@ -720,8 +720,8 @@ function OverlayPanel({
               </div>
             </fieldset>
             <div className="info-card">
-              <strong>{source === "server" ? "TrainMeet Server" : "Demoläge"}</strong>
-              <p>{source === "server" ? "Vyn uppdateras från serverns gemensamma driftstatus." : source === "cache" ? "Servern kan inte nås. Senast kända läge visas och trafikåtgärderna är spärrade." : "Den verkliga Charlottendal-konfigurationen visas lokalt i demoläge."}</p>
+              <strong>{source === "server" ? "TrainMeet Server" : "Offline"}</strong>
+              <p>{source === "server" ? "Vyn uppdateras från serverns gemensamma driftstatus." : "Servern kan inte nås. Senast kända läge visas och trafikåtgärderna är spärrade."}</p>
             </div>
             <button type="button" className="reconfigure-button" onClick={onReconfigure}>Kör första installationen igen</button>
             <div className="terminal-update-card">
@@ -795,12 +795,8 @@ export default function App() {
 
   useEffect(() => {
     if (!terminalConfig?.configured) return;
-    if (new URLSearchParams(window.location.search).get("demo") === "1") {
-      setAuthStatus({ authenticated: true, access_mode: "local", username: "Demooperatör", password_configured: true, must_change_password: false });
-      return;
-    }
     void loadAuthStatus().then(setAuthStatus).catch(() => {
-      setAuthStatus({ authenticated: false, access_mode: window.location.port === "8790" ? "terminal" : "external", username: "admin", password_configured: true, must_change_password: false });
+      setAuthStatus({ authenticated: false, access_mode: window.location.port === "8790" ? "terminal" : "external", username: "", password_configured: true, must_change_password: false });
     });
   }, [terminalConfig]);
 
@@ -835,31 +831,6 @@ export default function App() {
     if (!runtime || !stationId || !authStatus?.authenticated) return undefined;
     let active = true;
     const refreshContext = async () => {
-      if (runtime.source === "demo") {
-        if (!active) return;
-        setTklContext((current) => current ?? {
-          protocol_version: 1,
-          publication_id: runtime.snapshot.publication_id,
-          meet: runtime.snapshot.meet,
-          active_day: runtime.snapshot.active_day,
-          station: runtime.snapshot.stations.find((station) => station.id === stationId) ?? runtime.snapshot.stations[0],
-          terminal: { client_id: "demo", display_name: terminalConfig?.terminal_name || "Demo", kind: "demo" },
-          preflight: {
-            server_online: true,
-            clock_configured: true,
-            clock_running: true,
-            track_count: stationTracks(runtime.snapshot, stationId).length,
-            connection_count: runtime.snapshot.connections.filter((connection) => connection.station_a_id === stationId || connection.station_b_id === stationId).length,
-            train_count: runtime.snapshot.trains.filter((train) => train.station_id === stationId).length,
-            open_connection_count: runtime.snapshot.connection_states.filter((state) => state.state !== "free").length,
-          },
-          shift: null,
-          previous_shift: null,
-          movements: {},
-          connection_states: runtime.snapshot.connection_states,
-        });
-        return;
-      }
       try {
         const context = await loadTklContext(stationId);
         if (!active) return;
@@ -934,11 +905,6 @@ export default function App() {
   if (!tklContext) return <LoadingView />;
 
   const startShift = async (operatorName: string, takeOver: boolean) => {
-    if (runtime.source === "demo") {
-      const now = new Date().toISOString();
-      setTklContext((current) => current ? { ...current, shift: { shift_id: `demo-${Date.now()}`, operator_name: operatorName, terminal_name: terminalConfig.terminal_name, status: "active", started_at: now, updated_at: now } } : current);
-      return;
-    }
     const shift = await startTklShift({ station_id: stationId, operator_name: operatorName, terminal_name: terminalConfig.terminal_name, take_over: takeOver });
     setTklContext((current) => current ? { ...current, shift } : current);
   };
@@ -985,9 +951,8 @@ export default function App() {
         ? `arrival_${next.arrival}`
         : "track_changed";
     try {
-      if (runtime.source !== "demo") {
-        const departureConnection = connectionForTrain(train, "departure");
-        const arrivalConnection = connectionForTrain(train, "arrival");
+      const departureConnection = connectionForTrain(train, "departure");
+      const arrivalConnection = connectionForTrain(train, "arrival");
         if (next.departure === "ready" && previous.departure !== "ready" && snapshot.meet.default_dispatch_mode === "direct" && departureConnection) {
           const line = await performTklLineAction({ station_id: station.id, connection_id: departureConnection.id, train_number: train.train_number, action: "request" });
           setTklContext((current) => current ? { ...current, connection_states: current.connection_states.map((state) => state.id === line.id ? line : state) } : current);
@@ -1003,15 +968,14 @@ export default function App() {
             setTklContext((current) => current ? { ...current, connection_states: current.connection_states.map((state) => state.id === line.id ? line : state) } : current);
           }
         }
-        await updateTklMovement({
+      await updateTklMovement({
           station_id: station.id,
           movement_id: train.id,
           arrival: next.arrival,
           departure: next.departure,
           actual_track: next.actualTrack || train.track,
           event_type: eventType,
-        });
-      }
+      });
       if (next.departure === "departed" && previous.departure !== "departed") {
         setReceipt(`Tåg ${train.train_number} har avgått mot ${train.departure_to || "nästa station"}.`);
         window.setTimeout(() => setReceipt(null), 6000);
@@ -1029,7 +993,6 @@ export default function App() {
   const requestLineForTrain = async (train: TrainRow): Promise<"pending" | "confirmed"> => {
     const connection = connectionForTrain(train, "departure");
     if (!connection) throw new Error("Tågets nästa sträcka kunde inte bestämmas.");
-    if (runtime.source === "demo") return snapshot.meet.default_dispatch_mode === "direct" ? "confirmed" : "pending";
     const line = await performTklLineAction({ station_id: station.id, connection_id: connection.id, train_number: train.train_number, action: "request" });
     setTklContext((current) => current ? { ...current, connection_states: current.connection_states.map((state) => state.id === line.id ? line : state) } : current);
     return line.state === "reserved" ? "confirmed" : "pending";
@@ -1038,10 +1001,6 @@ export default function App() {
   const handleLineCase = async (lineState: RuntimeSnapshot["connection_states"][number], action: "accept" | "reject" | "cancel" | "arrive") => {
     setBusyLineId(lineState.id);
     try {
-      if (runtime.source === "demo") {
-        setTklContext((current) => current ? { ...current, connection_states: current.connection_states.map((state) => state.id === lineState.id ? { ...state, state: action === "accept" ? "reserved" : "free" } : state) } : current);
-        return;
-      }
       const line = await performTklLineAction({ station_id: station.id, connection_id: lineState.id, train_number: lineState.train_number || "", action });
       setTklContext((current) => current ? { ...current, connection_states: current.connection_states.map((state) => state.id === line.id ? line : state) } : current);
       if (action === "arrive" && lineState.train_number) {
@@ -1095,7 +1054,7 @@ export default function App() {
         defaultExpanded={defaultExpanded}
         freightMode={freightMode}
         selected={selectedTrain === train.train_number}
-        actionsDisabled={!runtime.connected && source !== "demo"}
+        actionsDisabled={!runtime.connected}
         onSelect={setSelectedTrain}
         onMovementChange={(next) => applyMovement(train, key, next)}
         onLineRequest={() => requestLineForTrain(train)}
@@ -1107,7 +1066,7 @@ export default function App() {
     <div className="app-background">
       <main className="app-shell">
         {receipt && <div className="operation-receipt" role="status"><CircleCheckBig /><span>{receipt}</span><button type="button" onClick={() => setReceipt(null)} aria-label="Stäng"><X /></button></div>}
-        {!runtime.connected && source !== "demo" && (
+        {!runtime.connected && (
           <div className="offline-banner" role="status">Offline · visar senast kända läge · trafikåtgärder är spärrade</div>
         )}
         <Header
@@ -1151,9 +1110,9 @@ export default function App() {
                 </div>
                 <span>{focusTrains.length}</span>
               </div>
-              {focusBeforeNow.map((train, index) => renderTrainCard(train, index === 0 && source === "demo"))}
+              {focusBeforeNow.map((train) => renderTrainCard(train))}
               <NowMarker />
-              {focusAfterNow.map((train, index) => renderTrainCard(train, focusBeforeNow.length === 0 && index === 0 && source === "demo"))}
+              {focusAfterNow.map((train) => renderTrainCard(train))}
             </div>
           )}
 
@@ -1198,9 +1157,7 @@ export default function App() {
           onFinishShift={async (status, note) => {
             const activeShift = tklContext.shift;
             if (!activeShift) return;
-            if (runtime.source !== "demo") {
-              await finishTklShift({ station_id: station.id, shift_id: activeShift.shift_id, status, note });
-            }
+            await finishTklShift({ station_id: station.id, shift_id: activeShift.shift_id, status, note });
             setOverlay(null);
             setFinishedShift({ shift: activeShift, status });
           }}
