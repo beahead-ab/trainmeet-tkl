@@ -1,0 +1,16 @@
+polkit.addRule(function(action, subject) {
+    if (subject.user === "trainmeet-tkl" && (
+        action.id === "org.freedesktop.NetworkManager.network-control" ||
+        action.id === "org.freedesktop.NetworkManager.enable-disable-wifi" ||
+        action.id === "org.freedesktop.NetworkManager.settings.modify.own" ||
+        action.id === "org.freedesktop.NetworkManager.settings.modify.system")) {
+        return polkit.Result.YES;
+    }
+    if (action.id === "org.freedesktop.systemd1.manage-units" &&
+        subject.user === "trainmeet-tkl" &&
+        action.lookup("verb") === "start" &&
+        action.lookup("unit") === "trainmeet-tkl-update.service") {
+        return polkit.Result.YES;
+    }
+    return polkit.Result.NOT_HANDLED;
+});

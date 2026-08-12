@@ -1338,6 +1338,49 @@ select:focus-visible {
   gap: 0.45rem;
 }
 
+.wifi-setup {
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem;
+  background: hsl(var(--secondary) / 0.35);
+}
+
+.wifi-setup summary {
+  padding: 0.85rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wifi-setup-content {
+  display: flex;
+  flex-direction: column;
+  padding: 0 1rem 1rem;
+  gap: 0.75rem;
+}
+
+.wifi-setup-content p {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.72rem;
+}
+
+.wifi-password-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+}
+
+.wifi-password-row button {
+  min-height: 3rem;
+  padding: 0 1rem;
+  border-radius: 9999px;
+  color: hsl(var(--background));
+  background: hsl(var(--foreground));
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .setup-fields label > span,
 .setup-fields legend {
   font-size: 0.75rem;
@@ -1386,6 +1429,98 @@ select:focus-visible {
 .server-field svg {
   width: 1rem;
   height: 1rem;
+}
+
+.discover-button,
+.reconfigure-button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 9999px;
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.terminal-update-card {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: hsl(var(--secondary) / 0.6);
+}
+
+.terminal-update-card p {
+  margin: 0.35rem 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
+}
+
+.terminal-update-card button {
+  width: 100%;
+  min-height: 2.5rem;
+  margin-top: 0.75rem;
+  border-radius: 9999px;
+  color: hsl(var(--background));
+  background: hsl(var(--foreground));
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.terminal-update-card button:disabled {
+  opacity: 0.5;
+}
+
+.discover-button svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.discover-button:disabled {
+  opacity: 0.5;
+}
+
+.discovered-servers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.discovered-servers button {
+  display: flex;
+  min-height: 3.25rem;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.8rem;
+  background: hsl(var(--background));
+  text-align: left;
+  cursor: pointer;
+}
+
+.discovered-servers button.is-selected {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 1px hsl(var(--primary));
+}
+
+.discovered-servers strong {
+  font-size: 0.8rem;
+}
+
+.discovered-servers span {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.7rem;
+}
+
+.reconfigure-button {
+  width: 100%;
+  margin-top: 1rem;
 }
 
 .meet-found {
@@ -1439,12 +1574,16 @@ select:focus-visible {
 .setup-message {
   min-height: 1.25rem;
   margin: 1rem 0;
-  color: hsl(var(--destructive));
+  color: hsl(var(--muted-foreground));
   font-size: 0.75rem;
 }
 
 .setup-message.is-success {
   color: hsl(var(--status-arrival));
+}
+
+.setup-message.is-error {
+  color: hsl(var(--destructive));
 }
 
 .setup-finish {

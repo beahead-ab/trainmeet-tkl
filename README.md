@@ -36,7 +36,15 @@ TrainMeet Server publicerar därefter vyn på `http://SERVER:8787/tkl/`. Första
 
 ## Raspberry Pi-terminal
 
-Målplattformen är Raspberry Pi 5 med Raspberry Pi OS Bookworm 64-bit och pekskärm. Bygg först paketet och kör installationen:
+Målplattformen är Raspberry Pi 5 med aktuell **Raspberry Pi OS Desktop 64-bit (Trixie)** och pekskärm. Lägg in Wi-Fi, land och en vanlig användare i Raspberry Pi Imager. Starta Pi:n och kör därefter hela installationen med ett kommando:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/beahead-ab/trainmeet-tkl/main/install.sh | sudo sh
+```
+
+Starta sedan om med `sudo reboot`. Installationen hämtar aktuell TKL-kod från GitHub, bygger UI:t och konfigurerar terminalen automatiskt.
+
+Vid utveckling från ett lokalt repo kan samma installation köras så här:
 
 ```bash
 npm ci
@@ -49,11 +57,15 @@ Installationen lägger in:
 - den statiska TKL-vyn i `/opt/trainmeet-tkl/web`,
 - det lokala apparatlagret på `127.0.0.1:8790`,
 - en systemd-tjänst med automatisk återstart,
-- Chromium i kantlöst kioskläge,
-- Openbox utan panel, skärmsläckare eller synlig muspekare,
+- Chromium i kantlöst kioskläge via Raspberry Pi OS rekommenderade Wayland/labwc,
+- avstängd skärmsläckare och omstart av Chromium om det stängs eller kraschar,
 - stående skärmläge som standard.
 
-Vid första starten väljer operatören TrainMeet Server, aktiv träff/station, terminalnamn och skärmorientering. Profilen sparas i `/var/lib/trainmeet-tkl/terminal-config.json`. Därefter öppnar apparaten alltid sin tilldelade station direkt.
+Vid första starten kan operatören ansluta Wi-Fi direkt på pekskärmen och väljer därefter TrainMeet Server, aktiv träff/station, terminalnamn och skärmorientering. Profilen sparas i `/var/lib/trainmeet-tkl/terminal-config.json`. Därefter öppnar apparaten alltid sin tilldelade station direkt. Wi-Fi hanteras av Raspberry Pi OS NetworkManager och lösenordet skickas direkt till `nmcli`; TKL sparar ingen egen kopia.
+
+TrainMeet Server hittas automatiskt via mDNS när servern och terminalen finns på samma lokala nätverk. Det går också att skriva serveradressen manuellt. Terminaladministrationen öppnas genom att hålla stationsnamnet i sidhuvudet intryckt i fem sekunder.
+
+I terminaladministrationen kan man även kontrollera och installera senaste TKL-versionen från GitHub. Uppdateringen körs av en separat root-ägd systemtjänst; webbgränssnittet får endast rättighet att starta just TKL-uppdateringen.
 
 ## Drift och offline
 

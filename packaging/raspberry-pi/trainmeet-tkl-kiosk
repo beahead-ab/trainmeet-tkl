@@ -1,29 +1,46 @@
 #!/bin/sh
 set -eu
 
-xset s off
-xset -dpms
-xset s noblank
-openbox-session &
-unclutter -idle 0.1 -root &
+exec 9>/tmp/trainmeet-tkl-kiosk.lock
+flock -n 9 || exit 0
 
-ORIENTATION=$(python3 -c 'import json; from pathlib import Path; p=Path("/var/lib/trainmeet-tkl/terminal-config.json"); print(json.loads(p.read_text()).get("orientation", "portrait") if p.exists() else "portrait")' 2>/dev/null || printf portrait)
-OUTPUT=$(xrandr --query | awk '/ connected/{print $1; exit}')
-if [ -n "$OUTPUT" ]; then
-  if [ "$ORIENTATION" = portrait ]; then
-    xrandr --output "$OUTPUT" --rotate right
+wait_for_terminal() {
+  until curl -fsS --max-time 2 http://127.0.0.1:8790/terminal/config >/dev/null 2>&1; do
+    sleep 1
+  done
+}
+
+apply_orientation() {
+  orientation=$(python3 -c 'import json; from pathlib import Path; p=Path("/var/lib/trainmeet-tkl/terminal-config.json"); print(json.loads(p.read_text()).get("orientation", "portrait") if p.exists() else "portrait")' 2>/dev/null || printf portrait)
+  output=$(wlr-randr 2>/dev/null | awk '/^[^ ]/{print $1; exit}')
+  [ -n "$output" ] || return 0
+  if [ "$orientation" = portrait ]; then
+    wlr-randr --output "$output" --transform 90 >/dev/null 2>&1 || true
   else
-    xrandr --output "$OUTPUT" --rotate normal
+    wlr-randr --output "$output" --transform normal >/dev/null 2>&1 || true
   fi
-fi
+}
 
-exec chromium \
-  --kiosk \
-  --app=http://127.0.0.1:8790/ \
-  --no-first-run \
-  --disable-infobars \
-  --disable-session-crashed-bubble \
-  --disable-pinch \
-  --overscroll-history-navigation=0 \
-  --password-store=basic \
-  --start-fullscreen
+wait_for_terminal
+
+while true; do
+  apply_orientation
+  chromium \
+    --kiosk \
+    --app=http://127.0.0.1:8790/ \
+    --noerrdialogs \
+    --no-first-run \
+    --disable-infobars \
+    --disable-session-crashed-bubble \
+    --disable-pinch \
+    --overscroll-history-navigation=0 \
+    --password-store=basic \
+    --start-maximized &
+  browser_pid=$!
+  while kill -0 "$browser_pid" 2>/dev/null; do
+    apply_orientation
+    sleep 5
+  done
+  wait "$browser_pid" || true
+  sleep 2
+done

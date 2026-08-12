@@ -18,6 +18,30 @@ export interface TerminalConfig {
   orientation: "portrait" | "landscape";
 }
 
+export interface DiscoveredServer {
+  name: string;
+  url: string;
+  address?: string;
+}
+
+export interface TerminalUpdateStatus {
+  supported: boolean;
+  installed_version: string;
+  latest_version?: string;
+  update_available?: boolean;
+  status: string;
+  message: string;
+  check_error?: string;
+}
+
+export interface WifiNetwork {
+  ssid: string;
+  connected: boolean;
+  signal: number;
+  secured: boolean;
+  security: string;
+}
+
 const browserConfigKey = "trainmeet-tkl.browser-config";
 
 const requestTimeout = 4000;
@@ -86,6 +110,32 @@ export async function inspectServer(serverUrl: string): Promise<RuntimeSnapshot>
   }
 }
 
+export async function discoverServers(): Promise<DiscoveredServer[]> {
+  try {
+    const result = await readJSON<{ servers: DiscoveredServer[] }>("/terminal/discover");
+    return result.servers;
+  } catch {
+    return [];
+  }
+}
+
+export async function loadWifiNetworks(): Promise<WifiNetwork[]> {
+  try {
+    const result = await readJSON<{ networks: WifiNetwork[] }>("/terminal/wifi");
+    return result.networks;
+  } catch {
+    return [];
+  }
+}
+
+export async function connectWifi(ssid: string, password: string): Promise<void> {
+  await readJSON<{ connected: boolean }>("/terminal/wifi", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ssid, password }),
+  });
+}
+
 export async function saveTerminalConfig(config: Omit<TerminalConfig, "configured">): Promise<TerminalConfig> {
   try {
     return await readJSON<TerminalConfig>("/terminal/config", {
@@ -98,6 +148,22 @@ export async function saveTerminalConfig(config: Omit<TerminalConfig, "configure
     window.localStorage.setItem(browserConfigKey, JSON.stringify(browserConfig));
     return browserConfig;
   }
+}
+
+export async function resetTerminalConfig(): Promise<void> {
+  try {
+    await readJSON<{ configured: boolean }>("/terminal/config", { method: "DELETE" });
+  } catch {
+    window.localStorage.removeItem(browserConfigKey);
+  }
+}
+
+export async function checkTerminalUpdate(): Promise<TerminalUpdateStatus> {
+  return readJSON<TerminalUpdateStatus>("/terminal/update");
+}
+
+export async function startTerminalUpdate(): Promise<void> {
+  await readJSON<{ status: string }>("/terminal/update", { method: "POST" });
 }
 
 function readBrowserCache(): RuntimeResult | null {

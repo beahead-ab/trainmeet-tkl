@@ -9,16 +9,21 @@ import {
   Package,
   RefreshCw,
   Server,
-  Settings,
   TrainFront,
   Wifi,
   X,
 } from "lucide-react";
 import {
   inspectServer,
+  checkTerminalUpdate,
+  connectWifi,
+  discoverServers,
   loadRuntime,
   loadTerminalConfig,
+  loadWifiNetworks,
+  resetTerminalConfig,
   saveTerminalConfig,
+  startTerminalUpdate,
   type RuntimeResult,
   type TerminalConfig,
 } from "./api";
@@ -65,10 +70,66 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
   const [stationId, setStationId] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("Ange adressen till TrainMeet Server på det lokala nätverket.");
+  const [messageKind, setMessageKind] = useState<"notice" | "success" | "error">("notice");
+  const [discoveredServers, setDiscoveredServers] = useState<Array<{ name: string; url: string }>>([]);
+  const [wifiNetworks, setWifiNetworks] = useState<Array<{ ssid: string; connected: boolean; signal: number; secured: boolean }>>([]);
+  const [wifiSsid, setWifiSsid] = useState("");
+  const [wifiPassword, setWifiPassword] = useState("");
+  const [wifiMessage, setWifiMessage] = useState("");
+
+  const scanWifi = async () => {
+    setWifiMessage("Söker efter Wi-Fi …");
+    const networks = await loadWifiNetworks();
+    setWifiNetworks(networks);
+    const connected = networks.find((network) => network.connected);
+    if (connected) {
+      setWifiSsid(connected.ssid);
+      setWifiMessage(`Ansluten till ${connected.ssid}.`);
+    } else {
+      setWifiMessage(networks.length ? "Välj nätverk och ange lösenord." : "Inga Wi-Fi-nätverk hittades. Ethernet kan fortfarande användas.");
+    }
+  };
+
+  const joinWifi = async () => {
+    if (!wifiSsid) return;
+    setBusy(true);
+    setWifiMessage(`Ansluter till ${wifiSsid} …`);
+    try {
+      await connectWifi(wifiSsid, wifiPassword);
+      setWifiPassword("");
+      setWifiMessage(`Ansluten till ${wifiSsid}.`);
+      window.setTimeout(() => { void scanWifi(); }, 1500);
+    } catch {
+      setWifiMessage("Wi-Fi-anslutningen misslyckades. Kontrollera lösenordet.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const discover = async () => {
+    setBusy(true);
+    setMessage("Söker efter TrainMeet Server på det lokala nätverket …");
+    setMessageKind("notice");
+    const servers = await discoverServers();
+    setDiscoveredServers(servers);
+    if (servers.length === 1) {
+      setServerUrl(servers[0].url);
+      setMessage(`Hittade ${servers[0].name}. Tryck Anslut för att läsa träffen.`);
+      setMessageKind("success");
+    } else if (servers.length > 1) {
+      setMessage(`Hittade ${servers.length} TrainMeet-servrar. Välj en och anslut.`);
+      setMessageKind("success");
+    } else {
+      setMessage("Ingen server hittades automatiskt. Ange adressen eller kontrollera nätverket.");
+      setMessageKind("error");
+    }
+    setBusy(false);
+  };
 
   const connect = async () => {
     setBusy(true);
     setMessage("Kontaktar TrainMeet Server …");
+    setMessageKind("notice");
     try {
       const next = await inspectServer(serverUrl);
       setSnapshot(next);
@@ -76,9 +137,11 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
       setStationId(preferred.id);
       setTerminalName((current) => current || `${preferred.code} TKL 1`);
       setMessage(`Hittade ${next.meet.name} med ${next.stations.length} stationer.`);
+      setMessageKind("success");
     } catch {
       setSnapshot(null);
       setMessage("Servern kunde inte nås. Kontrollera adress, nätverk och att TrainMeet Server är igång.");
+      setMessageKind("error");
     } finally {
       setBusy(false);
     }
@@ -100,6 +163,7 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
       onComplete(saved, snapshot);
     } catch {
       setMessage("Terminalprofilen kunde inte sparas.");
+      setMessageKind("error");
     } finally {
       setBusy(false);
     }
@@ -114,6 +178,28 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
         <p className="setup-intro">Valet sparas i apparaten. Efter nästa omstart öppnas TKL-vyn direkt på den valda stationen.</p>
 
         <div className="setup-fields">
+          <details className="wifi-setup">
+            <summary>Wi-Fi och nätverk</summary>
+            <div className="wifi-setup-content">
+              <button type="button" className="discover-button" onClick={() => { void scanWifi(); }} disabled={busy}><RefreshCw /> Sök Wi-Fi</button>
+              {wifiNetworks.length > 0 && (
+                <label>
+                  <span>Nätverk</span>
+                  <select value={wifiSsid} onChange={(event) => setWifiSsid(event.target.value)}>
+                    <option value="">Välj Wi-Fi …</option>
+                    {wifiNetworks.map((network) => <option key={network.ssid} value={network.ssid}>{network.connected ? "✓ " : ""}{network.ssid} · {network.signal}%{network.secured ? " · låst" : ""}</option>)}
+                  </select>
+                </label>
+              )}
+              {wifiSsid && !wifiNetworks.find((network) => network.ssid === wifiSsid)?.connected && (
+                <div className="wifi-password-row">
+                  <input type="password" value={wifiPassword} onChange={(event) => setWifiPassword(event.target.value)} placeholder="Wi-Fi-lösenord" autoComplete="new-password" />
+                  <button type="button" onClick={() => { void joinWifi(); }} disabled={busy}>Anslut</button>
+                </div>
+              )}
+              {wifiMessage && <p>{wifiMessage}</p>}
+            </div>
+          </details>
           <label>
             <span>TrainMeet Server</span>
             <div className="server-field">
@@ -121,6 +207,16 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
               <button type="button" onClick={connect} disabled={busy || !serverUrl.trim()}><Server /> Anslut</button>
             </div>
           </label>
+          <button type="button" className="discover-button" onClick={discover} disabled={busy}><RefreshCw /> Sök automatiskt på nätverket</button>
+          {discoveredServers.length > 1 && (
+            <div className="discovered-servers">
+              {discoveredServers.map((server) => (
+                <button type="button" key={server.url} onClick={() => setServerUrl(server.url)} className={serverUrl === server.url ? "is-selected" : ""}>
+                  <strong>{server.name}</strong><span>{server.url}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           {snapshot && (
             <>
@@ -151,7 +247,7 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
           )}
         </div>
 
-        <p className={`setup-message ${snapshot ? "is-success" : ""}`}>{message}</p>
+        <p className={`setup-message is-${messageKind}`}>{message}</p>
         {snapshot && <button type="button" className="setup-finish" onClick={finish} disabled={busy || !stationId || !terminalName.trim()}>Starta terminalen</button>}
       </div>
     </main>
@@ -184,13 +280,27 @@ function Header({
   onFreightToggle: () => void;
   onOverlay: (overlay: Overlay) => void;
 }) {
+  const adminTimer = useRef<number | null>(null);
+  const beginAdminHold = () => {
+    adminTimer.current = window.setTimeout(() => onOverlay("settings"), 5000);
+  };
+  const endAdminHold = () => {
+    if (adminTimer.current !== null) window.clearTimeout(adminTimer.current);
+    adminTimer.current = null;
+  };
   return (
     <>
       <header className="app-header">
         <button type="button" className="icon-button is-outlined" aria-label="Tillbaka" onClick={() => { window.location.href = "/"; }}>
           <ArrowLeft />
         </button>
-        <h1>
+        <h1
+          onPointerDown={beginAdminHold}
+          onPointerUp={endAdminHold}
+          onPointerCancel={endAdminHold}
+          onPointerLeave={endAdminHold}
+          title="Håll in stationsnamnet i fem sekunder för terminaladministration"
+        >
           <span className="station-name-long">{station.name}</span>
           <span className="station-name-short">{station.code}</span>
         </h1>
@@ -218,10 +328,6 @@ function Header({
           <Gamepad2 />
           <span>Tambox</span>
         </button>
-        <button type="button" onClick={() => onOverlay("settings")}>
-          <Settings />
-          <span>Inställningar</span>
-        </button>
       </nav>
     </>
   );
@@ -240,6 +346,7 @@ function OverlayPanel({
   theme,
   onThemeChange,
   onStationChange,
+  onReconfigure,
 }: {
   overlay: Exclude<Overlay, null>;
   onClose: () => void;
@@ -249,7 +356,52 @@ function OverlayPanel({
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
   onStationChange: (stationId: string) => void;
+  onReconfigure: () => void;
 }) {
+  const [updateStatus, setUpdateStatus] = useState<string>("");
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  useEffect(() => {
+    if (overlay !== "settings") return;
+    void checkTerminalUpdate().then((status) => {
+      setUpdateAvailable(Boolean(status.supported && status.update_available));
+      setUpdateStatus(status.check_error || (status.update_available
+        ? `Ny version ${status.latest_version} finns. Installerad: ${status.installed_version}.`
+        : `Installerad version ${status.installed_version} är aktuell.`));
+    }).catch(() => setUpdateStatus("Uppdatering hanteras av TrainMeet Server i det här körläget."));
+  }, [overlay]);
+
+  const installUpdate = async () => {
+    if (!window.confirm("Installera senaste TrainMeet TKL och starta om terminalvyn?")) return;
+    setUpdating(true);
+    setUpdateStatus("Uppdaterar från GitHub …");
+    try {
+      await startTerminalUpdate();
+      for (let attempt = 0; attempt < 180; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 2000));
+        try {
+          const status = await checkTerminalUpdate();
+          setUpdateStatus(status.message);
+          if (status.status === "complete") {
+            window.location.reload();
+            return;
+          }
+          if (status.status === "failed") {
+            setUpdateStatus(status.message);
+            setUpdating(false);
+            return;
+          }
+        } catch {
+          // The local terminal service is briefly unavailable while files are replaced.
+        }
+      }
+      setUpdateStatus("Uppdateringen tar längre tid än väntat. Terminalen försöker ansluta igen automatiskt.");
+      setUpdating(false);
+    } catch {
+      setUpdating(false);
+      setUpdateStatus("Uppdateringen kunde inte startas.");
+    }
+  };
   const panel = snapshot.connections.filter((connection) => (
     connection.station_a_id === station.id || connection.station_b_id === station.id
   ));
@@ -286,6 +438,12 @@ function OverlayPanel({
             <div className="info-card">
               <strong>{source === "server" ? "TrainMeet Server" : "Demoläge"}</strong>
               <p>{source === "server" ? "Vyn uppdateras från serverns gemensamma driftstatus." : source === "cache" ? "Servern kan inte nås. Senast kända läge visas och trafikåtgärderna är spärrade." : "Den verkliga Charlottendal-konfigurationen visas lokalt i demoläge."}</p>
+            </div>
+            <button type="button" className="reconfigure-button" onClick={onReconfigure}>Kör första installationen igen</button>
+            <div className="terminal-update-card">
+              <span className="micro-heading">Programvara</span>
+              <p>{updateStatus || "Kontrollerar version …"}</p>
+              {updateAvailable && <button type="button" onClick={() => { void installUpdate(); }} disabled={updating}>{updating ? "Installerar …" : "Installera uppdatering"}</button>}
             </div>
           </div>
         )}
@@ -410,6 +568,19 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const assignStation = async (nextStationId: string) => {
+    const nextStation = snapshot.stations.find((candidate) => candidate.id === nextStationId);
+    if (!nextStation) return;
+    const { configured: _configured, ...current } = terminalConfig;
+    const saved = await saveTerminalConfig({
+      ...current,
+      station_id: nextStation.id,
+      station_name: nextStation.name,
+    });
+    setTerminalConfig(saved);
+    selectStation(nextStationId);
+  };
+
   const selectTrain = (trainNumber: string) => {
     setSelectedTrain(trainNumber);
     const row = allStationTrains.find((train) => train.train_number === trainNumber);
@@ -442,7 +613,7 @@ export default function App() {
             trackOccupants={trackOccupants}
             selectedTrain={selectedTrain}
             onTrainSelect={selectTrain}
-            onStationSelect={selectStation}
+            onStationSelect={() => undefined}
           />
         </div>
 
@@ -500,7 +671,8 @@ export default function App() {
           source={source}
           theme={theme}
           onThemeChange={setTheme}
-          onStationChange={selectStation}
+          onStationChange={(nextStationId) => { void assignStation(nextStationId); }}
+          onReconfigure={() => { void resetTerminalConfig().then(() => window.location.reload()); }}
         />
       )}
     </div>

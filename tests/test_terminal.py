@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from terminal.trainmeet_tkl_terminal import TerminalApplication, normalize_server_url
+from terminal.trainmeet_tkl_terminal import TerminalApplication, normalize_server_url, split_nmcli_fields
 
 
 class FakeResponse:
@@ -65,6 +65,12 @@ class TerminalApplicationTests(unittest.TestCase):
     def test_only_http_server_urls_are_accepted(self):
         self.assertEqual(normalize_server_url("server.local:8787"), "http://server.local:8787")
         self.assertEqual(normalize_server_url("file:///etc/passwd"), "")
+
+    def test_nmcli_parser_keeps_colons_inside_ssid(self):
+        self.assertEqual(
+            split_nmcli_fields(r"*:TrainMeet\:lokal:87:WPA2"),
+            ["*", "TrainMeet:lokal", "87", "WPA2"],
+        )
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ import argparse
 import json
 import mimetypes
 import os
+import subprocess
 import tempfile
 from datetime import datetime, timezone
 from http import HTTPStatus
@@ -91,6 +92,119 @@ class TerminalApplication:
             except (OSError, KeyError, TypeError, json.JSONDecodeError) as error:
                 raise RuntimeError("TrainMeet Server kan inte nås och inget tidigare driftläge finns") from error
 
+    def discover_servers(self) -> list[dict[str, str]]:
+        found: dict[str, dict[str, str]] = {}
+        try:
+            result = subprocess.run(
+                ["avahi-browse", "-rtp", "_tambox._tcp"],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=6,
+            )
+            for line in result.stdout.splitlines():
+                if not line.startswith("="):
+                    continue
+                fields = line.split(";")
+                if len(fields) < 9:
+                    continue
+                name, hostname, address = fields[3], fields[6], fields[7]
+                host = hostname or address
+                if not host:
+                    continue
+                url = f"http://{host.rstrip('.')}:8787"
+                found[url] = {"name": name or hostname, "url": url, "address": address}
+        except (OSError, subprocess.SubprocessError):
+            pass
+        return list(found.values())
+
+    def wifi_networks(self) -> list[dict[str, object]]:
+        try:
+            result = subprocess.run(
+                ["nmcli", "-t", "-f", "IN-USE,SSID,SIGNAL,SECURITY", "device", "wifi", "list", "--rescan", "yes"],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return []
+        found: dict[str, dict[str, object]] = {}
+        for line in result.stdout.splitlines():
+            fields = split_nmcli_fields(line)
+            if len(fields) < 4 or not fields[1]:
+                continue
+            ssid = fields[1]
+            network = {
+                "ssid": ssid,
+                "connected": fields[0] == "*",
+                "signal": int(fields[2]) if fields[2].isdigit() else 0,
+                "secured": bool(fields[3] and fields[3] != "--"),
+                "security": fields[3],
+            }
+            previous = found.get(ssid)
+            if previous is None or int(network["signal"]) > int(previous["signal"]):
+                found[ssid] = network
+        return sorted(found.values(), key=lambda item: (not bool(item["connected"]), -int(item["signal"]), str(item["ssid"])))
+
+    @staticmethod
+    def connect_wifi(ssid: str, password: str) -> None:
+        ssid = ssid.strip()
+        if not ssid or len(ssid) > 64 or len(password) > 128:
+            raise ValueError("Ogiltigt Wi-Fi-nätverk")
+        command = ["nmcli", "--wait", "30", "device", "wifi", "connect", ssid]
+        if password:
+            command.extend(["password", password])
+        result = subprocess.run(command, check=False, capture_output=True, text=True, timeout=35)
+        if result.returncode != 0:
+            message = (result.stderr or result.stdout or "Anslutningen misslyckades").strip()
+            raise RuntimeError(message)
+
+    def update_status(self) -> dict:
+        try:
+            installed = Path("/opt/trainmeet-tkl/VERSION").read_text(encoding="utf-8").strip() or "okänd"
+        except OSError:
+            installed = "utvecklingsversion"
+        result = {
+            "supported": Path("/usr/local/sbin/trainmeet-tkl-update").exists(),
+            "installed_version": installed,
+            "status": "idle",
+            "message": "Ingen uppdatering pågår",
+        }
+        try:
+            saved = json.loads((self.state_dir / "update-status.json").read_text(encoding="utf-8"))
+            if isinstance(saved, dict):
+                result.update(saved)
+        except (OSError, json.JSONDecodeError):
+            pass
+        try:
+            request = Request(
+                "https://api.github.com/repos/beahead-ab/trainmeet-tkl/commits/main",
+                headers={"Accept": "application/vnd.github+json", "User-Agent": "TrainMeet-TKL-Terminal/0.2"},
+            )
+            with urlopen(request, timeout=5) as response:
+                latest = str(json.loads(response.read().decode("utf-8"))["sha"])[:8]
+            result["latest_version"] = latest
+            result["update_available"] = latest != installed
+        except (HTTPError, URLError, TimeoutError, OSError, KeyError, json.JSONDecodeError):
+            result["check_error"] = "GitHub kunde inte nås"
+        return result
+
+    def start_update(self) -> None:
+        atomic_json_write(
+            self.state_dir / "update-status.json",
+            {
+                "status": "starting",
+                "message": "Startar uppdateringstjänsten",
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+        subprocess.run(
+            ["/bin/systemctl", "start", "--no-block", "trainmeet-tkl-update.service"],
+            check=True,
+            timeout=5,
+        )
+
 
 def normalize_server_url(value: str) -> str:
     value = value.strip().rstrip("/")
@@ -100,6 +214,25 @@ def normalize_server_url(value: str) -> str:
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         return ""
     return value
+
+
+def split_nmcli_fields(line: str) -> list[str]:
+    fields: list[str] = []
+    current: list[str] = []
+    escaped = False
+    for character in line:
+        if escaped:
+            current.append(character)
+            escaped = False
+        elif character == "\\":
+            escaped = True
+        elif character == ":":
+            fields.append("".join(current))
+            current = []
+        else:
+            current.append(character)
+    fields.append("".join(current))
+    return fields
 
 
 def atomic_json_write(path: Path, value: dict) -> None:
@@ -135,10 +268,35 @@ class Handler(BaseHTTPRequestHandler):
             except RuntimeError as error:
                 self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"message": str(error)})
             return
+        if path == "/terminal/discover":
+            self.send_json(HTTPStatus.OK, {"servers": self.application.discover_servers()})
+            return
+        if path == "/terminal/update":
+            self.send_json(HTTPStatus.OK, self.application.update_status())
+            return
+        if path == "/terminal/wifi":
+            self.send_json(HTTPStatus.OK, {"networks": self.application.wifi_networks()})
+            return
         self.serve_static(path)
 
     def do_POST(self) -> None:
-        if urlparse(self.path).path != "/terminal/connect":
+        path = urlparse(self.path).path
+        if path == "/terminal/update":
+            try:
+                self.application.start_update()
+                self.send_json(HTTPStatus.ACCEPTED, {"status": "started", "message": "Uppdateringen har startat"})
+            except (OSError, subprocess.SubprocessError) as error:
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"message": f"Uppdateringen kunde inte startas: {error}"})
+            return
+        if path == "/terminal/wifi":
+            try:
+                payload = self.read_json()
+                self.application.connect_wifi(str(payload.get("ssid") or ""), str(payload.get("password") or ""))
+                self.send_json(HTTPStatus.OK, {"connected": True, "message": "Wi-Fi är anslutet"})
+            except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+                self.send_json(HTTPStatus.BAD_GATEWAY, {"message": str(error)})
+            return
+        if path != "/terminal/connect":
             self.send_json(HTTPStatus.NOT_FOUND, {"message": "Sidan finns inte"})
             return
         try:
@@ -157,6 +315,16 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(HTTPStatus.OK, config)
         except (ValueError, json.JSONDecodeError) as error:
             self.send_json(HTTPStatus.BAD_REQUEST, {"message": str(error)})
+
+    def do_DELETE(self) -> None:
+        if urlparse(self.path).path != "/terminal/config":
+            self.send_json(HTTPStatus.NOT_FOUND, {"message": "Sidan finns inte"})
+            return
+        try:
+            self.application.config_path.unlink(missing_ok=True)
+            self.send_json(HTTPStatus.OK, {"configured": False})
+        except OSError as error:
+            self.send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"message": str(error)})
 
     def read_json(self) -> dict:
         length = int(self.headers.get("Content-Length", "0"))

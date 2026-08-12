@@ -1,0 +1,9 @@
+[Unit]
+Description=Update TrainMeet TKL Terminal from GitHub
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/trainmeet-tkl-update
+Nice=10

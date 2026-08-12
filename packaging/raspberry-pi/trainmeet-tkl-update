@@ -1,0 +1,42 @@
+#!/bin/sh
+set -eu
+
+STATE_DIR=/var/lib/trainmeet-tkl
+STATUS_FILE="$STATE_DIR/update-status.json"
+KIOSK_USER=$(cat /etc/trainmeet-tkl-kiosk-user 2>/dev/null || true)
+
+status() {
+  stage=$1
+  message=$2
+  printf '{"status":"%s","message":"%s","updated_at":"%s"}\n' \
+    "$stage" "$message" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATUS_FILE"
+  chown trainmeet-tkl:trainmeet-tkl "$STATUS_FILE"
+  chmod 0640 "$STATUS_FILE"
+}
+
+status downloading "Hämtar senaste TrainMeet TKL från GitHub"
+TEMP_DIR=$(mktemp -d)
+completed=0
+cleanup() {
+  exit_code=$?
+  rm -rf "$TEMP_DIR"
+  if [ "$exit_code" -ne 0 ] && [ "$completed" -ne 1 ]; then
+    status failed "Uppdateringen misslyckades. Försök igen eller kontrollera nätverket."
+  fi
+  exit "$exit_code"
+}
+trap cleanup EXIT
+trap 'exit 1' INT TERM
+
+VERSION=$(curl -fsSL https://api.github.com/repos/beahead-ab/trainmeet-tkl/commits/main | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"][:8])')
+curl -fsSL https://github.com/beahead-ab/trainmeet-tkl/archive/refs/heads/main.tar.gz -o "$TEMP_DIR/trainmeet-tkl.tar.gz"
+tar -xzf "$TEMP_DIR/trainmeet-tkl.tar.gz" -C "$TEMP_DIR"
+SOURCE_DIR=$(find "$TEMP_DIR" -mindepth 1 -maxdepth 1 -type d | head -n 1)
+
+status installing "Installerar TrainMeet TKL $VERSION"
+cd "$SOURCE_DIR"
+npm ci --no-audit --no-fund
+npm run build
+TRAINMEET_TKL_USER="$KIOSK_USER" TRAINMEET_TKL_VERSION="$VERSION" ./scripts/install-raspberry-pi.sh
+status complete "TrainMeet TKL $VERSION installerades"
+completed=1
