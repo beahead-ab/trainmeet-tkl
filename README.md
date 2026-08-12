@@ -2,6 +2,44 @@
 
 Fristående operatörsklient för TrainMeet Server. Projektet återskapar Charlottendals TKL-vy från TrainMeet/Lovable och läser den lokala serverns gemensamma driftstatus.
 
+Projektet är öppet och publicerat under MIT-licensen. Koden kan användas, granskas, ändras och distribueras enligt villkoren i [LICENSE](LICENSE).
+
+> **Projektstatus:** Terminalgränssnitt, installation, första start, serveranslutning, stationsval, offline-cache och uppdatering är implementerade. Operativa trafikkommandon är ännu inte anslutna till TrainMeet Servers skriv-API. Använd därför inte denna version som ensam säkerhetsfunktion i trafikdrift.
+
+## Snabbaste installationen på Raspberry Pi
+
+### Du behöver
+
+- Raspberry Pi 5 rekommenderas; Pi 4 bör också fungera men är ännu inte verifierad.
+- Raspberry Pi OS Desktop 64-bit (Trixie).
+- En vanlig användare skapad i Raspberry Pi Imager.
+- Internet under installation och uppdatering.
+- Pekskärm eller vanlig skärm samt tillfälligt tangentbord.
+- En nåbar TrainMeet Server på samma nätverk eller via en angiven URL.
+
+Starta Raspberry Pi:n, öppna terminalen och kör:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/beahead-ab/trainmeet-tkl/main/install.sh | sudo sh
+sudo reboot
+```
+
+Efter omstart öppnas första-start-guiden automatiskt. Välj Wi-Fi vid behov, TrainMeet Server, träff/station, terminalnamn och skärmorientering. Därefter startar terminalen alltid direkt på den valda stationen.
+
+## Ladda ner koden
+
+- [Ladda ner senaste koden som ZIP](https://github.com/beahead-ab/trainmeet-tkl/archive/refs/heads/main.zip)
+- [Öppna projektet på GitHub](https://github.com/beahead-ab/trainmeet-tkl)
+
+Eller klona projektet:
+
+```bash
+git clone https://github.com/beahead-ab/trainmeet-tkl.git
+cd trainmeet-tkl
+```
+
+Ingen inloggning eller GitHub-nyckel krävs för att läsa eller ladda ner det publika projektet.
+
 ## Kör lokalt
 
 ```bash
@@ -67,6 +105,68 @@ TrainMeet Server hittas automatiskt via mDNS när servern och terminalen finns p
 
 I terminaladministrationen kan man även kontrollera och installera senaste TKL-versionen från GitHub. Uppdateringen körs av en separat root-ägd systemtjänst; webbgränssnittet får endast rättighet att starta just TKL-uppdateringen.
 
+### Uppdatera terminalen
+
+Rekommenderad metod är knappen **Sök efter uppdatering** i det dolda administrationsläget. Det går även att uppdatera från terminalen:
+
+```bash
+sudo systemctl start trainmeet-tkl-update.service
+```
+
+Följ förloppet med:
+
+```bash
+sudo journalctl -u trainmeet-tkl-update.service -f
+```
+
+Konfigurationen i `/var/lib/trainmeet-tkl/terminal-config.json` ligger kvar vid en vanlig uppdatering.
+
+### Tjänster, portar och filer
+
+| Del | Plats |
+|---|---|
+| Lokalt terminalgränssnitt | `http://127.0.0.1:8790` |
+| Program och byggt UI | `/opt/trainmeet-tkl` |
+| Terminalprofil och cache | `/var/lib/trainmeet-tkl` |
+| Terminaltjänst | `trainmeet-tkl.service` |
+| Uppdateringstjänst | `trainmeet-tkl-update.service` |
+| Kioskstart | `~/.config/labwc/autostart` |
+
+### Felsökning
+
+Kontrollera terminaltjänsten:
+
+```bash
+sudo systemctl status trainmeet-tkl.service
+sudo journalctl -u trainmeet-tkl.service -n 100 --no-pager
+```
+
+Kontrollera att terminalens lokala gränssnitt svarar:
+
+```bash
+curl http://127.0.0.1:8790/terminal/config
+```
+
+Om servern inte hittas automatiskt, kontrollera att båda apparaterna ligger på samma lokala nätverk och skriv därefter TrainMeet Server-adressen manuellt i första-start-guiden, exempelvis `http://192.168.1.20:8787`.
+
+Vid fel skärmorientering: öppna terminaladministrationen genom att hålla stationsnamnet i fem sekunder och byt mellan stående och liggande läge.
+
+### Avinstallera
+
+Avinstallationen är avsiktligt manuell så att terminalprofilen inte raderas av misstag:
+
+```bash
+sudo systemctl disable --now trainmeet-tkl.service
+sudo rm /etc/systemd/system/trainmeet-tkl.service
+sudo rm /etc/systemd/system/trainmeet-tkl-update.service
+sudo rm /etc/polkit-1/rules.d/50-trainmeet-tkl-update.rules
+sudo rm /usr/local/bin/trainmeet-tkl-kiosk
+sudo rm /usr/local/sbin/trainmeet-tkl-update
+sudo systemctl daemon-reload
+```
+
+Ta även bort raden med `trainmeet-tkl-kiosk` ur den vanliga användarens `~/.config/labwc/autostart`. Programmet finns kvar i `/opt/trainmeet-tkl` och profilen i `/var/lib/trainmeet-tkl` tills administratören uttryckligen väljer att radera dem.
+
 ## Drift och offline
 
 TrainMeet Server är fortsatt ensam auktoritet. Terminalens lilla lokala tjänst hämtar `/v1/display`, sparar den senaste giltiga bilden och levererar den till UI:t. Om nätverket försvinner visas tydligt **Offline** och senaste kända läge, men alla trafikåtgärder spärras tills kontakten är tillbaka.
@@ -95,3 +195,40 @@ Detta projekt paketerar Inter 400/500/600/700 lokalt med `@fontsource/inter`. D�
 - TKL-klienten läser `/v1/display` och har ingen egen trafikdatabas.
 - Den inbyggda demoträffen används endast när servern inte går att nå.
 - Operativa skrivkommandon ska anslutas till TrainMeet Servers TKL-API. Previewlägets knapptryckningar stannar därför i webbläsaren och påverkar inte servern.
+
+## Arkitektur
+
+```text
+TrainMeet TKL Terminal
+  Chromium-kiosk
+        │ 127.0.0.1:8790
+        ▼
+  Lokalt apparatlager
+        │ HTTP på lokalt nätverk
+        ▼
+  TrainMeet Server
+        │
+        ├── träff och stationskonfiguration
+        ├── tidtabell och gemensam klocka
+        └── auktoritativ trafikstatus
+```
+
+TKL-terminalen har ingen egen trafikdatabas. Den lokala profilen beskriver endast vilken server och station apparaten tillhör samt dess namn och skärmorientering.
+
+## Utveckling och tester
+
+Krav: Node.js 22 och Python 3.12 eller senare rekommenderas.
+
+```bash
+npm ci
+npm run build
+python3 -m unittest discover -s tests -v
+```
+
+Varje publicering på `main` byggs och testas automatiskt med GitHub Actions.
+
+Felrapporter och förbättringsförslag lämnas under [GitHub Issues](https://github.com/beahead-ab/trainmeet-tkl/issues).
+
+## Licens
+
+MIT © Beahead AB. Se [LICENSE](LICENSE).
