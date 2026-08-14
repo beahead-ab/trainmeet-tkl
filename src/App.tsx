@@ -61,6 +61,10 @@ import type { LocalMovementState, RuntimeSnapshot, Station, TrainRow } from "./t
 type Theme = "light" | "dark" | "grey" | "grey-dark";
 type Overlay = "settings" | "tambox" | "menu" | null;
 
+function TrainMeetLogo() {
+  return <img className="trainmeet-logo" src="./trainmeet-logo.png" alt="TrainMeet" />;
+}
+
 const emptyMovement = (): LocalMovementState => ({
   arrival: "none",
   departure: "none",
@@ -70,7 +74,7 @@ const emptyMovement = (): LocalMovementState => ({
 function LoadingView() {
   return (
     <main className="loading-view">
-      <div className="loading-mark"><TrainFront /></div>
+      <div className="loading-mark"><TrainMeetLogo /></div>
       <h1>TrainMeet TKL</h1>
       <p>Hämtar station och tidtabell…</p>
     </main>
@@ -222,7 +226,7 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
   return (
     <main className="setup-view">
       <div className="setup-card">
-        <div className="setup-brand"><TrainFront /><span>TrainMeet TKL Terminal</span></div>
+        <div className="setup-brand"><TrainMeetLogo /><span>TrainMeet TKL Terminal</span></div>
         <span className="micro-heading">Första starten</span>
         <h1>Koppla terminalen till stationen</h1>
         <p className="setup-intro">Valet sparas i apparaten. Efter nästa omstart öppnas TKL-vyn direkt på den valda stationen.</p>
@@ -386,7 +390,7 @@ function AuthenticationView({
   return (
     <main className="setup-view auth-view">
       <div className="setup-card auth-card">
-        <div className="setup-brand"><TrainFront /><span>TrainMeet TKL</span></div>
+        <div className="setup-brand"><TrainMeetLogo /><span>TrainMeet TKL</span></div>
         <span className="micro-heading">{terminalConfig.station_name || terminalConfig.terminal_name}</span>
         <h1>{status.access_mode === "terminal" ? "Parkoppla terminalen igen" : "Logga in för att fortsätta"}</h1>
         <p className="setup-intro">{status.access_mode === "terminal" ? "Terminalens tidigare behörighet gäller inte längre. Ange anslutningskoden från TrainMeet Server." : "Din station och terminalprofil finns kvar efter inloggningen."}</p>
@@ -443,7 +447,7 @@ function ShiftStartView({
   return (
     <main className="shift-start-view">
       <div className="shift-start-card">
-        <div className="setup-brand"><TrainFront /><span>TrainMeet TKL</span></div>
+        <div className="setup-brand"><TrainMeetLogo /><span>TrainMeet TKL</span></div>
         <span className="micro-heading">{context.meet.name} · {context.active_day}</span>
         <h1>Ta {context.station.name} i tjänst</h1>
         <p className="setup-intro">Kontrollera sammanhanget och starta ett trafikpass innan några tågrörelser hanteras.</p>
