@@ -184,7 +184,7 @@ Ta även bort raden med `trainmeet-tkl-kiosk` ur den vanliga användarens `~/.co
 
 TrainMeet Server är fortsatt ensam auktoritet. Terminalens lilla lokala tjänst hämtar `/v1/display`, sparar den senaste giltiga bilden och levererar den till UI:t. Om nätverket försvinner visas tydligt **Offline** och senaste kända läge, men alla trafikåtgärder spärras tills kontakten är tillbaka.
 
-Terminalen använder samma serverlogik som Tamboxarna. En begäran om tåg, ett godkännande, en avgång och en ankomst förändrar därför serverns gemensamma sträckstatus. Operatören kan lämna ett tågärende och fortsätta med nästa; ärendet tillhör sträckan och ligger kvar tills det avslutas.
+Terminalen använder samma serverlogik som TMBoxarna. En begäran om tåg, ett godkännande, en avgång och en ankomst förändrar därför serverns gemensamma sträckstatus. Operatören kan lämna ett tågärende och fortsätta med nästa; ärendet tillhör sträckan och ligger kvar tills det avslutas.
 
 ## Typografi – verifierad mot den körande Charlottendal-vyn
 
@@ -194,7 +194,7 @@ Beräknade stilar i den publicerade TrainMeet-sidan har jämförts med `TrainMee
 |---|---|
 | Brödtext | Inter 400, 16/24 px |
 | Stationsnamn i navbar | Inter 600, 14/20 px, `tracking-tight` |
-| TKL/Tambox/Inställningar | Inter 500, 12/16 px |
+| TKL/TMBox/Inställningar | Inter 500, 12/16 px |
 | Tid i tågrad | system-monospace 400, 14/20 px, tabular nums |
 | Tågnummer | Inter 700, 18/28 px, `tracking-tight` |
 | Sammanfattning | Inter 400, 14/20 px |

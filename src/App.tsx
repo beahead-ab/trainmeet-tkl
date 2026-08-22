@@ -607,7 +607,7 @@ function Header({
         </button>
         <button type="button" onClick={() => onOverlay("tambox")}>
           <Gamepad2 />
-          <span>Tambox</span>
+          <span>TMBox</span>
         </button>
       </nav>
     </>
@@ -699,7 +699,7 @@ function OverlayPanel({
         <div className="overlay-heading">
           <div>
             <span className="micro-heading">TrainMeet TKL</span>
-            <h2>{overlay === "settings" ? "Inställningar" : overlay === "tambox" ? "Tambox" : "Meny"}</h2>
+            <h2>{overlay === "settings" ? "Inställningar" : overlay === "tambox" ? "TMBox" : "Meny"}</h2>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Stäng"><X /></button>
         </div>
@@ -738,7 +738,7 @@ function OverlayPanel({
 
         {overlay === "tambox" && (
           <div className="overlay-content">
-            <p className="overlay-intro">Samma A–D-anslutningar som den fysiska Tamboxen. Alla kommandon ska gå genom TrainMeet Server.</p>
+            <p className="overlay-intro">Samma A–D-anslutningar som den fysiska TMBoxen. Alla kommandon ska gå genom TrainMeet Server.</p>
             <div className="tambox-slots">
               {(["A", "B", "C", "D"] as const).map((slot, index) => {
                 const connection = panel[index];
@@ -754,7 +754,7 @@ function OverlayPanel({
                 );
               })}
             </div>
-            <a className="primary-link" href="/">Öppna full Tambox-simulering</a>
+            <a className="primary-link" href="/">Öppna full TMBox-simulering</a>
           </div>
         )}
 
