@@ -21,8 +21,7 @@ auktoritativa källan.
 Allt annat är **härlett** och skrivs därifrån av `scripts/version.py sync`:
 `pyproject.toml`, `package.json`, `project.yml`, `project.pbxproj`,
 `FIRMWARE_VERSION` i skissen. Testsviten faller om någon av dem säger något
-annat, vilket är hela poängen — tre påståenden hade hunnit glida isär innan
-den här filen fanns.
+annat.
 
 Git-committen är **bygginformation**, inte en version. Den svarar på «exakt
 vilken kod är detta», vilket ett versionsnummer medvetet inte gör:
@@ -51,12 +50,8 @@ markör:
 
 Starkast först. Den första som passar bestämmer:
 
-1. **Alla commits i mergen är robotens egna** — då är det en loop, och den
-   stoppas. Kontrollen görs på *avsändaradress*
-   (`version@trainmeet.app`), inte på texten. Det var inte första försöket:
-   en vakt som letade efter `[skip version]` i meddelandet utlöstes av en
-   commit vars brödtext *förklarade* markören. Prosa kan inte utge sig för
-   att vara en avsändare.
+1. **Alla commits i mergen är robotens egna** — då stoppas loopen. Kontrollen
+   görs på avsändaradressen `version@trainmeet.app`.
 2. **`[skip version]`** i en commits **ämnesrad**.
 3. **`VERSION` ändrades i mergen** — någon har redan skrivit ett exakt
    nummer, och det ska inte höjas förbi. Det här är varför den merge som
@@ -74,9 +69,7 @@ Starkast först. Den första som passar bestämmer:
 Skriver `VERSION`, synkar de härledda filerna, committar
 `Version X.Y.Z [skip version]` och sätter taggen `vX.Y.Z`.
 
-Taggen sätts **när numret saknar tagg**, inte bara när roboten höjde det. Ett
-nummer någon satt för hand är ett medvetet släppbeslut och förtjänar en tagg
-mer än en automatisk patch gör — förut fick det ingen alls.
+Taggen sätts när versionsnumret saknar tagg, även om numret har satts manuellt.
 
 ## Om det inte fungerar
 
