@@ -1,6 +1,7 @@
 # TrainMeet TKL
 
-Fristående operatörsklient för TrainMeet Server. Projektet återskapar Charlottendals TKL-vy från TrainMeet/Lovable och läser den lokala serverns gemensamma driftstatus.
+Fristående operatörsklient för TrainMeet Server. Klienten ger en
+stationsanpassad TKL-vy och läser den lokala serverns gemensamma driftstatus.
 
 Projektet är öppet och publicerat under MIT-licensen. Koden kan användas, granskas, ändras och distribueras enligt villkoren i [LICENSE](LICENSE).
 
@@ -186,23 +187,13 @@ TrainMeet Server är fortsatt ensam auktoritet. Terminalens lilla lokala tjänst
 
 Terminalen använder samma serverlogik som TMBoxarna. En begäran om tåg, ett godkännande, en avgång och en ankomst förändrar därför serverns gemensamma sträckstatus. Operatören kan lämna ett tågärende och fortsätta med nästa; ärendet tillhör sträckan och ligger kvar tills det avslutas.
 
-## Typografi – verifierad mot den körande Charlottendal-vyn
+## Typografi
 
-Beräknade stilar i den publicerade TrainMeet-sidan har jämförts med `TrainMeet-Design-Guide.md`:
-
-| Element | Verklig stil |
-|---|---|
-| Brödtext | Inter 400, 16/24 px |
-| Stationsnamn i navbar | Inter 600, 14/20 px, `tracking-tight` |
-| TKL/TMBox/Inställningar | Inter 500, 12/16 px |
-| Tid i tågrad | system-monospace 400, 14/20 px, tabular nums |
-| Tågnummer | Inter 700, 18/28 px, `tracking-tight` |
-| Sammanfattning | Inter 400, 14/20 px |
-| Primär åtgärd | Inter 500, 14/20 px |
-
-Designguidens princip är riktig: Inter är gränssnittets typsnitt och DM Sans är reserverat för TrainMeet-varumärket och särskilda navigeringsrubriker. Charlottendals operatörsvy använder inte DM Sans. Den tidigare webben deklarerade Inter men hämtade endast DM Sans från Google Fonts, vilket innebar att resultatet kunde bero på om Inter redan fanns installerat på enheten.
-
-Detta projekt paketerar Inter 400/500/600/700 lokalt med `@fontsource/inter`. Därför blir typografin identisk på Mac, Raspberry Pi och en internetfrånkopplad mötesplats.
+Inter är gränssnittets typsnitt och paketeras lokalt i vikterna 400, 500, 600
+och 700. DM Sans används bara för TrainMeet-varumärket och särskilda
+navigeringsrubriker. Tider och andra täta siffervärden använder systemets
+monospace-typsnitt med tabulära siffror. Därmed blir typografin konsekvent på
+Mac, Raspberry Pi och en internetfrånkopplad mötesplats.
 
 ## Datagräns
 
@@ -242,6 +233,9 @@ python3 -m unittest discover -s tests -v
 ```
 
 Varje publicering på `main` byggs och testas automatiskt med GitHub Actions.
+
+En översikt över den publika dokumentationen finns i
+[docs/README.md](docs/README.md).
 
 Felrapporter och förbättringsförslag lämnas under [GitHub Issues](https://github.com/beahead-ab/trainmeet-tkl/issues).
 
