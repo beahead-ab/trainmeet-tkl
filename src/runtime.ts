@@ -70,7 +70,9 @@ export function formatClock(value: string): string {
 }
 
 export function movementKey(train: TrainRow): string {
-  return [train.train_number, train.arrival_time ?? "", train.departure_time ?? "", train.track].join("|");
+  // The server saves and returns movement states by movement_id, not timetable
+  // fields. Use the same identity before and after the next context refresh.
+  return train.id;
 }
 
 export function isFreight(train: TrainRow): boolean {
