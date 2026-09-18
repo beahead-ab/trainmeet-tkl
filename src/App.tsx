@@ -1,3 +1,4 @@
+import { t, locale } from "./i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -60,9 +61,11 @@ import type { LocalMovementState, RuntimeSnapshot, Station, TrainRow } from "./t
 
 type Theme = "light" | "dark" | "grey" | "grey-dark";
 type Overlay = "settings" | "tambox" | "menu" | null;
+type UiMessage = string | { source: string; values: Record<string, string | number> };
+const messageText = (message: UiMessage) => typeof message === "string" ? t(message) : t(message.source, message.values);
 
 function TrainMeetLogo() {
-  return <img className="trainmeet-logo" src="./trainmeet-logo.png" alt="TrainMeet" />;
+  return <img className="trainmeet-logo" src="./trainmeet-logo.png" alt={t("TrainMeet")} />;
 }
 
 const emptyMovement = (): LocalMovementState => ({
@@ -75,8 +78,8 @@ function LoadingView() {
   return (
     <main className="loading-view">
       <div className="loading-mark"><TrainMeetLogo /></div>
-      <h1>TrainMeet TKL</h1>
-      <p>Hämtar station och tidtabell…</p>
+      <h1>{t("TrainMeet TKL")}</h1>
+      <p>{t("Hämtar station och tidtabell…")}</p>
     </main>
   );
 }
@@ -90,13 +93,13 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
   const [snapshot, setSnapshot] = useState<RuntimeSnapshot | null>(null);
   const [stationId, setStationId] = useState("");
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("Ange adressen till TrainMeet Server på det lokala nätverket.");
+  const [message, setMessage] = useState<UiMessage>("Ange adressen till TrainMeet Server på det lokala nätverket.");
   const [messageKind, setMessageKind] = useState<"notice" | "success" | "error">("notice");
   const [discoveredServers, setDiscoveredServers] = useState<Array<{ name: string; url: string }>>([]);
   const [wifiNetworks, setWifiNetworks] = useState<Array<{ ssid: string; connected: boolean; signal: number; secured: boolean }>>([]);
   const [wifiSsid, setWifiSsid] = useState("");
   const [wifiPassword, setWifiPassword] = useState("");
-  const [wifiMessage, setWifiMessage] = useState("");
+  const [wifiMessage, setWifiMessage] = useState<UiMessage>("");
   const [auth, setAuth] = useState<AuthStatus | null>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -109,7 +112,7 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
     const connected = networks.find((network) => network.connected);
     if (connected) {
       setWifiSsid(connected.ssid);
-      setWifiMessage(`Ansluten till ${connected.ssid}.`);
+      setWifiMessage({source: "Ansluten till {name}.", values: {name: connected.ssid}});
     } else {
       setWifiMessage(networks.length ? "Välj nätverk och ange lösenord." : "Inga Wi-Fi-nätverk hittades. Ethernet kan fortfarande användas.");
     }
@@ -118,11 +121,11 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
   const joinWifi = async () => {
     if (!wifiSsid) return;
     setBusy(true);
-    setWifiMessage(`Ansluter till ${wifiSsid} …`);
+    setWifiMessage({source: "Ansluter till {name} …", values: {name: wifiSsid}});
     try {
       await connectWifi(wifiSsid, wifiPassword);
       setWifiPassword("");
-      setWifiMessage(`Ansluten till ${wifiSsid}.`);
+      setWifiMessage({source: "Ansluten till {name}.", values: {name: wifiSsid}});
       window.setTimeout(() => { void scanWifi(); }, 1500);
     } catch {
       setWifiMessage("Wi-Fi-anslutningen misslyckades. Kontrollera lösenordet.");
@@ -139,10 +142,10 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
     setDiscoveredServers(servers);
     if (servers.length === 1) {
       setServerUrl(servers[0].url);
-      setMessage(`Hittade ${servers[0].name}. Tryck Anslut för att läsa träffen.`);
+      setMessage({source: "Hittade {name}. Tryck Anslut för att läsa träffen.", values: {name: servers[0].name}});
       setMessageKind("success");
     } else if (servers.length > 1) {
-      setMessage(`Hittade ${servers.length} TrainMeet-servrar. Välj en och anslut.`);
+      setMessage({source: "Hittade {count} TrainMeet-servrar. Välj en och anslut.", values: {count: servers.length}});
       setMessageKind("success");
     } else {
       setMessage("Ingen server hittades automatiskt. Ange adressen eller kontrollera nätverket.");
@@ -161,7 +164,7 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
       const preferred = defaultStation(next);
       setStationId(preferred.id);
       setTerminalName((current) => current || `${preferred.code} TKL 1`);
-      setMessage(`Hittade ${next.meet.name} med ${next.stations.length} stationer.`);
+      setMessage({source: "Hittade {name} med {count} stationer.", values: {name: next.meet.name, count: next.stations.length}});
       setMessageKind("success");
       try {
         const status = await loadAuthStatus();
@@ -226,49 +229,49 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
   return (
     <main className="setup-view">
       <div className="setup-card">
-        <div className="setup-brand"><TrainMeetLogo /><span>TrainMeet TKL Terminal</span></div>
-        <span className="micro-heading">Första starten</span>
-        <h1>Koppla terminalen till stationen</h1>
-        <p className="setup-intro">Valet sparas i apparaten. Efter nästa omstart öppnas TKL-vyn direkt på den valda stationen.</p>
+        <div className="setup-brand"><TrainMeetLogo /><span>{t("TrainMeet TKL Terminal")}</span></div>
+        <span className="micro-heading">{t("Första starten")}</span>
+        <h1>{t("Koppla terminalen till stationen")}</h1>
+        <p className="setup-intro">{t("Valet sparas i apparaten. Efter nästa omstart öppnas TKL-vyn direkt på den valda stationen.")}</p>
 
-        <div className="setup-progress" aria-label="Installationens steg">
-          <span className="is-complete"><b>1</b>Anslut</span>
-          <span className={snapshot ? "is-complete" : ""}><b>2</b>Logga in</span>
-          <span className={auth?.authenticated ? "is-complete" : ""}><b>3</b>Träff</span>
-          <span className={stationId && auth?.authenticated ? "is-complete" : ""}><b>4</b>Station</span>
+        <div className="setup-progress" aria-label={t("Installationens steg")}>
+          <span className="is-complete"><b>1</b>{t("Anslut")}</span>
+          <span className={snapshot ? "is-complete" : ""}><b>2</b>{t("Logga in")}</span>
+          <span className={auth?.authenticated ? "is-complete" : ""}><b>3</b>{t("Träff")}</span>
+          <span className={stationId && auth?.authenticated ? "is-complete" : ""}><b>4</b>{t("Station")}</span>
         </div>
 
         <div className="setup-fields">
           <details className="wifi-setup">
-            <summary>Wi-Fi och nätverk</summary>
+            <summary>{t("Wi-Fi och nätverk")}</summary>
             <div className="wifi-setup-content">
-              <button type="button" className="discover-button" onClick={() => { void scanWifi(); }} disabled={busy}><RefreshCw /> Sök Wi-Fi</button>
+              <button type="button" className="discover-button" onClick={() => { void scanWifi(); }} disabled={busy}><RefreshCw /> {t("Sök Wi-Fi")}</button>
               {wifiNetworks.length > 0 && (
                 <label>
-                  <span>Nätverk</span>
+                  <span>{t("Nätverk")}</span>
                   <select value={wifiSsid} onChange={(event) => setWifiSsid(event.target.value)}>
-                    <option value="">Välj Wi-Fi …</option>
-                    {wifiNetworks.map((network) => <option key={network.ssid} value={network.ssid}>{network.connected ? "✓ " : ""}{network.ssid} · {network.signal}%{network.secured ? " · låst" : ""}</option>)}
+                    <option value="">{t("Välj Wi-Fi …")}</option>
+                    {wifiNetworks.map((network) => <option key={network.ssid} value={network.ssid}>{network.connected ? "✓ " : ""}{network.ssid} · {network.signal}%{network.secured ? ` · ${t("låst")}` : ""}</option>)}
                   </select>
                 </label>
               )}
               {wifiSsid && !wifiNetworks.find((network) => network.ssid === wifiSsid)?.connected && (
                 <div className="wifi-password-row">
-                  <input type="password" value={wifiPassword} onChange={(event) => setWifiPassword(event.target.value)} placeholder="Wi-Fi-lösenord" autoComplete="new-password" />
-                  <button type="button" onClick={() => { void joinWifi(); }} disabled={busy}>Anslut</button>
+                  <input type="password" value={wifiPassword} onChange={(event) => setWifiPassword(event.target.value)} placeholder={t("Wi-Fi-lösenord")} autoComplete="new-password" />
+                  <button type="button" onClick={() => { void joinWifi(); }} disabled={busy}>{t("Anslut")}</button>
                 </div>
               )}
-              {wifiMessage && <p>{wifiMessage}</p>}
+              {wifiMessage && <p>{messageText(wifiMessage)}</p>}
             </div>
           </details>
           <label>
-            <span>TrainMeet Server</span>
+            <span>{t("TrainMeet Server")}</span>
             <div className="server-field">
               <input value={serverUrl} onChange={(event) => setServerUrl(event.target.value)} placeholder="http://trainmeet.local:8787" />
-              <button type="button" onClick={connect} disabled={busy || !serverUrl.trim()}><Server /> Anslut</button>
+              <button type="button" onClick={connect} disabled={busy || !serverUrl.trim()}><Server /> {t("Anslut")}</button>
             </div>
           </label>
-          <button type="button" className="discover-button" onClick={discover} disabled={busy}><RefreshCw /> Sök automatiskt på nätverket</button>
+          <button type="button" className="discover-button" onClick={discover} disabled={busy}><RefreshCw /> {t("Sök automatiskt på nätverket")}</button>
           {discoveredServers.length > 1 && (
             <div className="discovered-servers">
               {discoveredServers.map((server) => (
@@ -283,36 +286,36 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
             <>
               {!auth?.authenticated && (
                 <section className="setup-step-card">
-                  <div className="setup-step-heading"><LogIn /><span><strong>{auth?.access_mode === "terminal" ? "Parkoppla terminalen" : "Logga in"}</strong><small>{auth?.access_mode === "terminal" ? "Använd anslutningskoden från TrainMeet Server." : "Extern anslutning kräver serverns administratörskonto."}</small></span></div>
+                  <div className="setup-step-heading"><LogIn /><span><strong>{auth?.access_mode === "terminal" ? t("Parkoppla terminalen") : t("Logga in")}</strong><small>{auth?.access_mode === "terminal" ? t("Använd anslutningskoden från TrainMeet Server.") : t("Extern anslutning kräver serverns administratörskonto.")}</small></span></div>
                   {auth?.access_mode === "terminal" ? (
-                    <input value={pairingCode} onChange={(event) => setPairingCode(event.target.value)} placeholder="Anslutningskod, exempelvis 123-456" inputMode="numeric" />
+                    <input value={pairingCode} onChange={(event) => setPairingCode(event.target.value)} placeholder={t("Anslutningskod, exempelvis 123-456")} inputMode="numeric" />
                   ) : (
                     <div className="login-fields">
-                      <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Användarnamn" autoComplete="username" />
-                      <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Lösenord" autoComplete="current-password" />
+                      <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder={t("Användarnamn")} autoComplete="username" />
+                      <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={t("Lösenord")} autoComplete="current-password" />
                     </div>
                   )}
-                  <button type="button" className="setup-auth-button" onClick={() => { void authenticate(); }} disabled={busy || (auth?.access_mode === "terminal" ? !pairingCode.trim() : !username.trim() || !password)}>Fortsätt</button>
+                  <button type="button" className="setup-auth-button" onClick={() => { void authenticate(); }} disabled={busy || (auth?.access_mode === "terminal" ? !pairingCode.trim() : !username.trim() || !password)}>{t("Fortsätt")}</button>
                 </section>
               )}
               {auth?.authenticated && (
                 <>
                   <section className="setup-step-card is-success">
-                    <div className="setup-step-heading"><ShieldCheck /><span><strong>Ansluten</strong><small>{auth.access_mode === "terminal" ? "Terminalen är parkopplad och känns igen automatiskt." : `Inloggad som ${auth.username}.`}</small></span></div>
+                    <div className="setup-step-heading"><ShieldCheck /><span><strong>{t("Ansluten")}</strong><small>{auth.access_mode === "terminal" ? t("Terminalen är parkopplad och känns igen automatiskt.") : t("Inloggad som {name}.", {name: auth.username})}</small></span></div>
                   </section>
                   <section className="meet-selection">
-                    <span className="micro-heading">Aktiv träff</span>
-                    <div className="meet-found"><Check /><span><strong>{snapshot.meet.name}</strong><small>{snapshot.active_day} · {snapshot.stations.length} stationer</small></span></div>
+                    <span className="micro-heading">{t("Aktiv träff")}</span>
+                    <div className="meet-found"><Check /><span><strong>{snapshot.meet.name}</strong><small>{snapshot.active_day} · {snapshot.stations.length} {t("stationer")}</small></span></div>
                   </section>
                   <section className="station-selection">
-                    <span className="micro-heading">Välj station</span>
+                    <span className="micro-heading">{t("Välj station")}</span>
                     <div className="station-choice-grid">
                       {snapshot.stations.map((station) => {
                         const movements = snapshot.trains.filter((train) => train.station_id === station.id).length;
                         const connections = snapshot.connections.filter((connection) => connection.station_a_id === station.id || connection.station_b_id === station.id).length;
                         return (
                           <button type="button" key={station.id} className={stationId === station.id ? "is-selected" : ""} onClick={() => { setStationId(station.id); setTerminalName(`${station.code} TKL 1`); }}>
-                            <b>{station.code}</b><span><strong>{station.name}</strong><small>{movements} tågrörelser · {connections} anslutningar</small></span>{stationId === station.id && <Check />}
+                            <b>{station.code}</b><span><strong>{station.name}</strong><small>{movements} {t("tågrörelser ·")} {connections} {t("anslutningar")}</small></span>{stationId === station.id && <Check />}
                           </button>
                         );
                       })}
@@ -322,16 +325,16 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
               )}
               {auth?.authenticated && (
               <label>
-                <span>Terminalens namn</span>
-                <input value={terminalName} onChange={(event) => setTerminalName(event.target.value)} placeholder="CDA TKL 1" />
+                <span>{t("Terminalens namn")}</span>
+                <input value={terminalName} onChange={(event) => setTerminalName(event.target.value)} placeholder={t("CDA TKL 1")} />
               </label>
               )}
               {auth?.authenticated && (
               <fieldset>
-                <legend>Skärm</legend>
+                <legend>{t("Skärm")}</legend>
                 <div className="orientation-options">
-                  <button type="button" className={orientation === "portrait" ? "is-selected" : ""} onClick={() => setOrientation("portrait")}>Stående</button>
-                  <button type="button" className={orientation === "landscape" ? "is-selected" : ""} onClick={() => setOrientation("landscape")}>Liggande</button>
+                  <button type="button" className={orientation === "portrait" ? "is-selected" : ""} onClick={() => setOrientation("portrait")}>{t("Stående")}</button>
+                  <button type="button" className={orientation === "landscape" ? "is-selected" : ""} onClick={() => setOrientation("landscape")}>{t("Liggande")}</button>
                 </div>
               </fieldset>
               )}
@@ -339,8 +342,8 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
           )}
         </div>
 
-        <p className={`setup-message is-${messageKind}`}>{message}</p>
-        {snapshot && auth?.authenticated && <button type="button" className="setup-finish" onClick={finish} disabled={busy || !stationId || !terminalName.trim()}><MapPin /> Bekräfta station och fortsätt</button>}
+        <p className={`setup-message is-${messageKind}`}>{messageText(message)}</p>
+        {snapshot && auth?.authenticated && <button type="button" className="setup-finish" onClick={finish} disabled={busy || !stationId || !terminalName.trim()}><MapPin /> {t("Bekräfta station och fortsätt")}</button>}
       </div>
     </main>
   );
@@ -350,9 +353,9 @@ function UnavailableView({ onRetry }: { onRetry: () => void }) {
   return (
     <main className="loading-view">
       <div className="loading-mark is-offline"><Wifi /></div>
-      <h1>Ingen kontakt med TrainMeet Server</h1>
-      <p>Inga trafikåtgärder kan utföras innan servern svarar.</p>
-      <button type="button" className="retry-button" onClick={onRetry}><RefreshCw /> Försök igen</button>
+      <h1>{t("Ingen kontakt med TrainMeet Server")}</h1>
+      <p>{t("Inga trafikåtgärder kan utföras innan servern svarar.")}</p>
+      <button type="button" className="retry-button" onClick={onRetry}><RefreshCw /> {t("Försök igen")}</button>
     </main>
   );
 }
@@ -390,23 +393,23 @@ function AuthenticationView({
   return (
     <main className="setup-view auth-view">
       <div className="setup-card auth-card">
-        <div className="setup-brand"><TrainMeetLogo /><span>TrainMeet TKL</span></div>
+        <div className="setup-brand"><TrainMeetLogo /><span>{t("TrainMeet TKL")}</span></div>
         <span className="micro-heading">{terminalConfig.station_name || terminalConfig.terminal_name}</span>
-        <h1>{status.access_mode === "terminal" ? "Parkoppla terminalen igen" : "Logga in för att fortsätta"}</h1>
-        <p className="setup-intro">{status.access_mode === "terminal" ? "Terminalens tidigare behörighet gäller inte längre. Ange anslutningskoden från TrainMeet Server." : "Din station och terminalprofil finns kvar efter inloggningen."}</p>
+        <h1>{status.access_mode === "terminal" ? t("Parkoppla terminalen igen") : t("Logga in för att fortsätta")}</h1>
+        <p className="setup-intro">{status.access_mode === "terminal" ? t("Terminalens tidigare behörighet gäller inte längre. Ange anslutningskoden från TrainMeet Server.") : t("Din station och terminalprofil finns kvar efter inloggningen.")}</p>
         <div className="login-fields">
           {status.access_mode === "terminal" ? (
-            <input value={pairingCode} onChange={(event) => setPairingCode(event.target.value)} placeholder="Anslutningskod" inputMode="numeric" />
+            <input value={pairingCode} onChange={(event) => setPairingCode(event.target.value)} placeholder={t("Anslutningskod")} inputMode="numeric" />
           ) : (
             <>
-              <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Användarnamn" autoComplete="username" />
-              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Lösenord" autoComplete="current-password" />
+              <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder={t("Användarnamn")} autoComplete="username" />
+              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={t("Lösenord")} autoComplete="current-password" />
             </>
           )}
         </div>
-        {message && <p className="setup-message is-error">{message}</p>}
-        <button type="button" className="setup-finish" onClick={() => { void submit(); }} disabled={busy || (status.access_mode === "terminal" ? !pairingCode.trim() : !username.trim() || !password)}><LogIn /> {busy ? "Ansluter …" : "Fortsätt"}</button>
-        <button type="button" className="text-action" onClick={onReconfigure}>Byt server eller station</button>
+        {message && <p className="setup-message is-error">{messageText(message)}</p>}
+        <button type="button" className="setup-finish" onClick={() => { void submit(); }} disabled={busy || (status.access_mode === "terminal" ? !pairingCode.trim() : !username.trim() || !password)}><LogIn /> {busy ? t("Ansluter …") : t("Fortsätt")}</button>
+        <button type="button" className="text-action" onClick={onReconfigure}>{t("Byt server eller station")}</button>
       </div>
     </main>
   );
@@ -426,11 +429,11 @@ function ShiftStartView({
   const [error, setError] = useState("");
   const active = context.shift;
   const checks = [
-    { label: "TrainMeet Server", ok: context.preflight.server_online, detail: "Ansluten" },
-    { label: "Träffklocka", ok: context.preflight.clock_configured, detail: context.preflight.clock_running ? "Går" : "Står still" },
-    { label: "Stationsspår", ok: context.preflight.track_count > 0, detail: `${context.preflight.track_count} spår` },
-    { label: "Anslutningar", ok: context.preflight.connection_count > 0, detail: `${context.preflight.connection_count} sträckor` },
-    { label: "Tidtabell", ok: context.preflight.train_count > 0, detail: `${context.preflight.train_count} tågrörelser` },
+    { label: "TrainMeet Server", ok: context.preflight.server_online, detail: t("Ansluten") },
+    { label: "Träffklocka", ok: context.preflight.clock_configured, detail: context.preflight.clock_running ? t("Går") : t("Står still") },
+    { label: "Stationsspår", ok: context.preflight.track_count > 0, detail: t("{count} spår", {count: context.preflight.track_count}) },
+    { label: "Anslutningar", ok: context.preflight.connection_count > 0, detail: t("{count} sträckor", {count: context.preflight.connection_count}) },
+    { label: "Tidtabell", ok: context.preflight.train_count > 0, detail: t("{count} tågrörelser", {count: context.preflight.train_count}) },
   ];
   const start = async () => {
     setBusy(true);
@@ -447,27 +450,27 @@ function ShiftStartView({
   return (
     <main className="shift-start-view">
       <div className="shift-start-card">
-        <div className="setup-brand"><TrainMeetLogo /><span>TrainMeet TKL</span></div>
+        <div className="setup-brand"><TrainMeetLogo /><span>{t("TrainMeet TKL")}</span></div>
         <span className="micro-heading">{context.meet.name} · {context.active_day}</span>
-        <h1>Ta {context.station.name} i tjänst</h1>
-        <p className="setup-intro">Kontrollera sammanhanget och starta ett trafikpass innan några tågrörelser hanteras.</p>
+        <h1>{t("Ta {station} i tjänst", {station: context.station.name})}</h1>
+        <p className="setup-intro">{t("Kontrollera sammanhanget och starta ett trafikpass innan några tågrörelser hanteras.")}</p>
         {active && (
           <div className="active-shift-notice">
-            <UserRound /><span><strong>Pågående trafikpass</strong><small>{active.operator_name} · startat {new Date(active.started_at).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}</small></span>
+            <UserRound /><span><strong>{t("Pågående trafikpass")}</strong><small>{active.operator_name} {t("· startat")} {new Date(active.started_at).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })}</small></span>
           </div>
         )}
         {!active && context.previous_shift?.status === "handover" && context.previous_shift.handover_note && (
           <div className="active-shift-notice is-handover">
-            <MessageCircle /><span><strong>Från föregående operatör</strong><small>{context.previous_shift.handover_note}</small></span>
+            <MessageCircle /><span><strong>{t("Från föregående operatör")}</strong><small>{context.previous_shift.handover_note}</small></span>
           </div>
         )}
         <div className="preflight-list">
-          {checks.map((check) => <div key={check.label}><span className={check.ok ? "is-ok" : "is-warning"}>{check.ok ? <Check /> : <Clock3 />}</span><strong>{check.label}</strong><small>{check.detail}</small></div>)}
+          {checks.map((check) => <div key={check.label}><span className={check.ok ? "is-ok" : "is-warning"}>{check.ok ? <Check /> : <Clock3 />}</span><strong>{t(check.label)}</strong><small>{check.detail}</small></div>)}
         </div>
-        <label className="operator-field"><span>Operatör</span><input value={operatorName} onChange={(event) => setOperatorName(event.target.value)} placeholder="Ditt namn" autoFocus /></label>
-        <div className="shift-summary"><MapPin /><span><strong>{context.station.code} · {context.station.name}</strong><small>{terminalName} · {context.preflight.open_connection_count ? `${context.preflight.open_connection_count} pågående sträckor att ta över` : "Alla sträckor fria"}</small></span></div>
+        <label className="operator-field"><span>{t("Operatör")}</span><input value={operatorName} onChange={(event) => setOperatorName(event.target.value)} placeholder={t("Ditt namn")} autoFocus /></label>
+        <div className="shift-summary"><MapPin /><span><strong>{context.station.code} · {context.station.name}</strong><small>{terminalName} · {context.preflight.open_connection_count ? t("{count} pågående sträckor att ta över", {count: context.preflight.open_connection_count}) : t("Alla sträckor fria")}</small></span></div>
         {error && <p className="setup-message is-error">{error}</p>}
-        <button type="button" className="setup-finish" disabled={busy || !operatorName.trim() || checks.some((check) => !check.ok && check.label !== "Träffklocka")} onClick={() => { void start(); }}><ShieldCheck /> {busy ? "Startar …" : active ? "Ta över trafikpasset" : "Starta trafikpass"}</button>
+        <button type="button" className="setup-finish" disabled={busy || !operatorName.trim() || checks.some((check) => !check.ok && check.label !== "Träffklocka")} onClick={() => { void start(); }}><ShieldCheck /> {busy ? t("Startar …") : active ? t("Ta över trafikpasset") : t("Starta trafikpass")}</button>
       </div>
     </main>
   );
@@ -491,10 +494,10 @@ function ShiftFinishedView({
       <div className="shift-start-card shift-finished-card">
         <div className="completion-symbol"><CircleCheckBig /></div>
         <span className="micro-heading">{station.code} · {station.name}</span>
-        <h1>{status === "handover" ? "Stationen är överlämnad" : "Trafikpasset är avslutat"}</h1>
-        <p className="setup-intro">{shift.operator_name} hanterade {completedCount} avslutade tågrörelser under det här terminalpasset.</p>
-        <div className="shift-summary"><Clock3 /><span><strong>{new Date(shift.started_at).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}–{new Date().toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}</strong><small>{status === "handover" ? "Nästa operatör kan nu ta över." : "Stationen är inte längre bemannad i TKL."}</small></span></div>
-        <button type="button" className="setup-finish" onClick={onContinue}>Till startsidan</button>
+        <h1>{status === "handover" ? t("Stationen är överlämnad") : t("Trafikpasset är avslutat")}</h1>
+        <p className="setup-intro">{t("{name} hanterade {count} avslutade tågrörelser under det här terminalpasset.", {name: shift.operator_name, count: completedCount})}</p>
+        <div className="shift-summary"><Clock3 /><span><strong>{new Date(shift.started_at).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })}–{new Date().toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })}</strong><small>{status === "handover" ? t("Nästa operatör kan nu ta över.") : t("Stationen är inte längre bemannad i TKL.")}</small></span></div>
+        <button type="button" className="setup-finish" onClick={onContinue}>{t("Till startsidan")}</button>
       </div>
     </main>
   );
@@ -516,8 +519,8 @@ function AttentionQueue({
   const cases = context.connection_states.filter((state) => state.state !== "free");
   if (!cases.length) return null;
   return (
-    <section className="attention-queue" aria-label="Kräver uppmärksamhet">
-      <div className="attention-heading"><span><strong>Kräver uppmärksamhet</strong><small>{cases.length} aktiva trafikärenden</small></span></div>
+    <section className="attention-queue" aria-label={t("Kräver uppmärksamhet")}>
+      <div className="attention-heading"><span><strong>{t("Kräver uppmärksamhet")}</strong><small>{cases.length} {t("aktiva trafikärenden")}</small></span></div>
       <div className="attention-list">
         {cases.map((state) => {
           const connection = snapshot.connections.find((candidate) => candidate.id === state.id);
@@ -532,11 +535,11 @@ function AttentionQueue({
           return (
             <article key={state.id} className={`attention-case is-${state.state}`}>
               <span className="attention-state-dot" />
-              <div><span className="micro-heading">{neighbor?.code || "STRÄCKA"}</span><strong>{label}</strong><small>Tåg {state.train_number || "?"} · {neighbor?.name || state.id}</small></div>
+              <div><span className="micro-heading">{neighbor?.code || t("STRÄCKA")}</span><strong>{t(label)}</strong><small>{t("Tåg")} {state.train_number || "?"} · {neighbor?.name || state.id}</small></div>
               <div className="attention-actions">
-                {state.state === "requested" && !outgoing && <><button type="button" disabled={busyId === state.id} onClick={() => { void onAction(state, "accept"); }}>Godkänn</button><button type="button" className="secondary" disabled={busyId === state.id} onClick={() => { void onAction(state, "reject"); }}>Neka</button></>}
-                {state.state === "requested" && outgoing && <button type="button" className="secondary" disabled={busyId === state.id} onClick={() => { void onAction(state, "cancel"); }}>Återkalla</button>}
-                {state.state === "occupied" && !outgoing && <button type="button" disabled={busyId === state.id} onClick={() => { void onAction(state, "arrive"); }}>Bekräfta ankomst</button>}
+                {state.state === "requested" && !outgoing && <><button type="button" disabled={busyId === state.id} onClick={() => { void onAction(state, "accept"); }}>{t("Godkänn")}</button><button type="button" className="secondary" disabled={busyId === state.id} onClick={() => { void onAction(state, "reject"); }}>{t("Neka")}</button></>}
+                {state.state === "requested" && outgoing && <button type="button" className="secondary" disabled={busyId === state.id} onClick={() => { void onAction(state, "cancel"); }}>{t("Återkalla")}</button>}
+                {state.state === "occupied" && !outgoing && <button type="button" disabled={busyId === state.id} onClick={() => { void onAction(state, "arrive"); }}>{t("Bekräfta ankomst")}</button>}
               </div>
             </article>
           );
@@ -572,7 +575,7 @@ function Header({
   return (
     <>
       <header className="app-header">
-        <button type="button" className="icon-button is-outlined" aria-label="Tillbaka" onClick={() => { window.location.href = "/"; }}>
+        <button type="button" className="icon-button is-outlined" aria-label={t("Tillbaka")} onClick={() => { window.location.href = "/"; }}>
           <ArrowLeft />
         </button>
         <h1
@@ -580,34 +583,34 @@ function Header({
           onPointerUp={endAdminHold}
           onPointerCancel={endAdminHold}
           onPointerLeave={endAdminHold}
-          title="Håll in stationsnamnet i fem sekunder för terminaladministration"
+          title={t("Håll in stationsnamnet i fem sekunder för terminaladministration")}
         >
           <span className="station-name-long">{station.name}</span>
           <span className="station-name-short">{station.code}</span>
         </h1>
-        <span className="clock-pill" title={`Träffklocka, hastighet ${snapshot.clock.speed ?? 1}×`}>
+        <span className="clock-pill" title={t("Träffklocka, hastighet {speed}×", {speed: snapshot.clock.speed ?? 1})}>
           <Clock3 />
           {formatClock(snapshot.clock.time)}
         </span>
-        <span className={`connection-indicator ${source === "server" ? "is-online" : "is-offline"}`} title={source === "server" ? "Ansluten till TrainMeet Server" : "Offline – senast kända läge"}>
+        <span className={`connection-indicator ${source === "server" ? "is-online" : "is-offline"}`} title={source === "server" ? t("Ansluten till TrainMeet Server") : t("Offline – senast kända läge")}>
           <Wifi />
         </span>
-        <button type="button" className="icon-button message-button" aria-label="Meddelanden">
+        <button type="button" className="icon-button message-button" aria-label={t("Meddelanden")}>
           <MessageCircle />
           <span>1</span>
         </button>
-        <button type="button" className="icon-button" aria-label="Meny" onClick={() => onOverlay("menu")}>
+        <button type="button" className="icon-button" aria-label={t("Meny")} onClick={() => onOverlay("menu")}>
           <Menu />
         </button>
       </header>
-      <nav className="dispatcher-toolbar" aria-label="Verktyg">
+      <nav className="dispatcher-toolbar" aria-label={t("Verktyg")}>
         <button type="button" className={freightMode ? "is-freight" : ""} onClick={onFreightToggle}>
           {freightMode ? <Package /> : <TrainFront />}
-          <span>{freightMode ? "Gods" : "TKL"}</span>
+          <span>{freightMode ? t("Gods") : "TKL"}</span>
         </button>
         <button type="button" onClick={() => onOverlay("tambox")}>
           <Gamepad2 />
-          <span>TMBox</span>
+          <span>{t("TMBox")}</span>
         </button>
       </nav>
     </>
@@ -615,7 +618,7 @@ function Header({
 }
 
 function NowMarker() {
-  return <div className="now-marker" aria-label="Nu"><span /></div>;
+  return <div className="now-marker" aria-label={t("Nu")}><span /></div>;
 }
 
 function OverlayPanel({
@@ -698,22 +701,22 @@ function OverlayPanel({
       <aside className="overlay-panel" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
         <div className="overlay-heading">
           <div>
-            <span className="micro-heading">TrainMeet TKL</span>
-            <h2>{overlay === "settings" ? "Inställningar" : overlay === "tambox" ? "TMBox" : "Meny"}</h2>
+            <span className="micro-heading">{t("TrainMeet TKL")}</span>
+            <h2>{overlay === "settings" ? t("Inställningar") : overlay === "tambox" ? "TMBox" : t("Meny")}</h2>
           </div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Stäng"><X /></button>
+          <button type="button" className="icon-button" onClick={onClose} aria-label={t("Stäng")}><X /></button>
         </div>
 
         {overlay === "settings" && (
           <div className="overlay-content form-stack">
             <label>
-              <span>Station</span>
+              <span>{t("Station")}</span>
               <select value={station.id} onChange={(event) => onStationChange(event.target.value)}>
                 {snapshot.stations.map((candidate) => <option value={candidate.id} key={candidate.id}>{candidate.name}</option>)}
               </select>
             </label>
             <fieldset>
-              <legend>Tema</legend>
+              <legend>{t("Tema")}</legend>
               <div className="theme-grid">
                 {(["light", "dark", "grey", "grey-dark"] as Theme[]).map((candidate) => (
                   <button type="button" key={candidate} className={theme === candidate ? "is-active" : ""} onClick={() => onThemeChange(candidate)}>
@@ -724,12 +727,12 @@ function OverlayPanel({
               </div>
             </fieldset>
             <div className="info-card">
-              <strong>{source === "server" ? "TrainMeet Server" : "Offline"}</strong>
+              <strong>{source === "server" ? "TrainMeet Server" : t("Offline")}</strong>
               <p>{source === "server" ? "Vyn uppdateras från serverns gemensamma driftstatus." : "Servern kan inte nås. Senast kända läge visas och trafikåtgärderna är spärrade."}</p>
             </div>
-            <button type="button" className="reconfigure-button" onClick={onReconfigure}>Kör första installationen igen</button>
+            <button type="button" className="reconfigure-button" onClick={onReconfigure}>{t("Kör första installationen igen")}</button>
             <div className="terminal-update-card">
-              <span className="micro-heading">Programvara</span>
+              <span className="micro-heading">{t("Programvara")}</span>
               <p>{updateStatus || "Kontrollerar version …"}</p>
               {updateAvailable && <button type="button" onClick={() => { void installUpdate(); }} disabled={updating}>{updating ? "Installerar …" : "Installera uppdatering"}</button>}
             </div>
@@ -738,7 +741,7 @@ function OverlayPanel({
 
         {overlay === "tambox" && (
           <div className="overlay-content">
-            <p className="overlay-intro">Samma A–D-anslutningar som den fysiska TMBoxen. Alla kommandon ska gå genom TrainMeet Server.</p>
+            <p className="overlay-intro">{t("Samma A–D-anslutningar som den fysiska TMBoxen. Alla kommandon ska gå genom TrainMeet Server.")}</p>
             <div className="tambox-slots">
               {(["A", "B", "C", "D"] as const).map((slot, index) => {
                 const connection = panel[index];
@@ -754,20 +757,20 @@ function OverlayPanel({
                 );
               })}
             </div>
-            <a className="primary-link" href="/">Öppna full TMBox-simulering</a>
+            <a className="primary-link" href="/">{t("Öppna full TMBox-simulering")}</a>
           </div>
         )}
 
         {overlay === "menu" && (
           <div className="overlay-content menu-list">
-            <div className="active-operator-card"><UserRound /><span><strong>{shift.operator_name}</strong><small>Trafikpass startat {new Date(shift.started_at).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}</small></span></div>
-            <label className="handover-note"><span>Överlämningsanteckning</span><textarea value={handoverNote} onChange={(event) => setHandoverNote(event.target.value)} placeholder="Valfri information till nästa operatör" rows={3} /></label>
+            <div className="active-operator-card"><UserRound /><span><strong>{shift.operator_name}</strong><small>{t("Trafikpass startat")} {new Date(shift.started_at).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })}</small></span></div>
+            <label className="handover-note"><span>{t("Överlämningsanteckning")}</span><textarea value={handoverNote} onChange={(event) => setHandoverNote(event.target.value)} placeholder={t("Valfri information till nästa operatör")} rows={3} /></label>
             {shiftError && <p className="setup-message is-error">{shiftError}</p>}
-            <button type="button" disabled={finishingShift} onClick={() => { setFinishingShift(true); setShiftError(""); void onFinishShift("handover", handoverNote).catch((error) => { setShiftError(error instanceof Error ? error.message : "Överlämningen misslyckades."); setFinishingShift(false); }); }}>Lämna över stationen</button>
-            <button type="button" className="danger-menu-action" disabled={finishingShift} onClick={() => { setFinishingShift(true); setShiftError(""); void onFinishShift("closed", handoverNote).catch((error) => { setShiftError(error instanceof Error ? error.message : "Trafikpasset kunde inte avslutas."); setFinishingShift(false); }); }}>Avsluta trafikpasset</button>
+            <button type="button" disabled={finishingShift} onClick={() => { setFinishingShift(true); setShiftError(""); void onFinishShift("handover", handoverNote).catch((error) => { setShiftError(error instanceof Error ? error.message : "Överlämningen misslyckades."); setFinishingShift(false); }); }}>{t("Lämna över stationen")}</button>
+            <button type="button" className="danger-menu-action" disabled={finishingShift} onClick={() => { setFinishingShift(true); setShiftError(""); void onFinishShift("closed", handoverNote).catch((error) => { setShiftError(error instanceof Error ? error.message : "Trafikpasset kunde inte avslutas."); setFinishingShift(false); }); }}>{t("Avsluta trafikpasset")}</button>
             <div className="info-card">
               <strong>{snapshot.meet.name}</strong>
-              <p>{snapshot.active_day} · revision {snapshot.revision ?? 0}</p>
+              <p>{snapshot.active_day} {t("· revision")} {snapshot.revision ?? 0}</p>
             </div>
           </div>
         )}
@@ -1069,9 +1072,9 @@ export default function App() {
   return (
     <div className="app-background">
       <main className="app-shell">
-        {receipt && <div className="operation-receipt" role="status"><CircleCheckBig /><span>{receipt}</span><button type="button" onClick={() => setReceipt(null)} aria-label="Stäng"><X /></button></div>}
+        {receipt && <div className="operation-receipt" role="status"><CircleCheckBig /><span>{receipt}</span><button type="button" onClick={() => setReceipt(null)} aria-label={t("Stäng")}><X /></button></div>}
         {!runtime.connected && (
-          <div className="offline-banner" role="status">Offline · visar senast kända läge · trafikåtgärder är spärrade</div>
+          <div className="offline-banner" role="status">{t("Offline · visar senast kända läge · trafikåtgärder är spärrade")}</div>
         )}
         <Header
           station={station}
@@ -1096,21 +1099,21 @@ export default function App() {
 
         <AttentionQueue snapshot={snapshot} station={station} context={tklContext} busyId={busyLineId} onAction={handleLineCase} />
 
-        <section className="train-list" aria-label="Tågrörelser">
+        <section className="train-list" aria-label={t("Tågrörelser")}>
           {activeTrains.length === 0 && (
             <div className="empty-state">
               <TrainFront />
-              <strong>Inga tågrörelser</strong>
+              <strong>{t("Inga tågrörelser")}</strong>
               <span>{freightMode ? "Det finns inga godståg på stationen." : "Stationen saknar tågrörelser för aktiv dag."}</span>
             </div>
           )}
 
           {focusTrains.length > 0 && (
-            <div className="movement-section" aria-label="Aktuella tågrörelser">
+            <div className="movement-section" aria-label={t("Aktuella tågrörelser")}>
               <div className="movement-section-heading">
                 <div>
-                  <strong>Aktuellt på stationen</strong>
-                  <span>Pågående ärenden och de närmaste tågen</span>
+                  <strong>{t("Aktuellt på stationen")}</strong>
+                  <span>{t("Pågående ärenden och de närmaste tågen")}</span>
                 </div>
                 <span>{focusTrains.length}</span>
               </div>
@@ -1124,8 +1127,8 @@ export default function App() {
             <details className="schedule-section">
               <summary>
                 <span>
-                  <strong>Hela dagens tidtabell</strong>
-                  <small>Övriga tågrörelser i tidsordning</small>
+                  <strong>{t("Hela dagens tidtabell")}</strong>
+                  <small>{t("Övriga tågrörelser i tidsordning")}</small>
                 </span>
                 <span>{laterTrains.length}</span>
               </summary>
@@ -1136,11 +1139,11 @@ export default function App() {
           )}
 
           <details className="archive-section">
-            <summary>Arkiverade tågrörelser ({archivedTrains.length + onLineNumbers.size})</summary>
+            <summary>{t("Arkiverade tågrörelser (")}{archivedTrains.length + onLineNumbers.size})</summary>
             <div className="archive-content">
-              {archivedTrains.length === 0 && onLineNumbers.size === 0 && <span>Inga arkiverade tågrörelser.</span>}
-              {[...onLineNumbers].map((number) => <span key={number}>Tåg {number} · på linjen</span>)}
-              {archivedTrains.map((train) => <span key={train.id}>Tåg {train.train_number} · avgått</span>)}
+              {archivedTrains.length === 0 && onLineNumbers.size === 0 && <span>{t("Inga arkiverade tågrörelser.")}</span>}
+              {[...onLineNumbers].map((number) => <span key={number}>{t("Tåg")} {number} {t("· på linjen")}</span>)}
+              {archivedTrains.map((train) => <span key={train.id}>{t("Tåg")} {train.train_number} {t("· avgått")}</span>)}
             </div>
           </details>
         </section>
