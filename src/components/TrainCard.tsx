@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, FileText, Package, SendHorizontal } from "lucide-react";
 import { movementTrackLabel, routeNeighbors } from "../runtime";
@@ -69,7 +70,7 @@ function nextAction(train: TrainRow, movement: LocalMovementState): {
 } | null {
   if (train.no_stop) {
     if (movement.arrival === "none") return { label: "På väg in", arrival: "approaching" };
-    if (movement.arrival === "approaching") return { label: "Passerat", arrival: "arrived" };
+    if (movement.arrival === "approaching") return { label: t("Passerat"), arrival: "arrived" };
     return null;
   }
 
@@ -77,26 +78,26 @@ function nextAction(train: TrainRow, movement: LocalMovementState): {
     return { label: "På väg in", arrival: "approaching" };
   }
   if (train.arrival_time && movement.arrival === "approaching") {
-    return { label: "Ankommit", arrival: "arrived" };
+    return { label: t("Ankommit"), arrival: "arrived" };
   }
   const arrivalComplete = !train.arrival_time || movement.arrival === "arrived";
   if (!train.departure_time || !arrivalComplete) return null;
   if (!train.arrival_time && movement.departure === "none") {
-    return { label: "Ställ upp tåg", departure: "positioned" };
+    return { label: t("Ställ upp tåg"), departure: "positioned" };
   }
   if (movement.departure === "none" || movement.departure === "positioned") {
-    return { label: "Klart för avgång", departure: "ready" };
+    return { label: t("Klart för avgång"), departure: "ready" };
   }
   if (movement.departure === "ready") {
-    return { label: "Tåg ut", departure: "departed" };
+    return { label: t("Tåg ut"), departure: "departed" };
   }
   return null;
 }
 
 function statusLabel(train: TrainRow, movement: LocalMovementState, from: string | null, to: string | null): string {
-  if (movement.departure === "departed") return "Avgått";
-  if (movement.departure === "ready") return to ? `Klart → ${to}` : "Klart för avgång";
-  if (movement.departure === "positioned") return to ? `Uppställt → ${to}` : "Uppställt";
+  if (movement.departure === "departed") return t("Avgått");
+  if (movement.departure === "ready") return to ? `Klart → ${to}` : t("Klart för avgång");
+  if (movement.departure === "positioned") return to ? `Uppställt → ${to}` : t("Uppställt");
   if (movement.arrival === "approaching") return "På väg in";
   if (movement.arrival === "arrived") return from ? `Ankommet ← ${from}` : "Ankommet";
   if (train.arrival_time && from) return `Ank från ${from}`;
@@ -209,7 +210,7 @@ export function TrainCard({
           <DirectionIcon train={train} />
           <span>{trackLabel ?? "Okänt spår"}</span>
         </span>
-        {train.note && !expanded && <FileText className="note-icon" aria-label="Tåget har en anteckning" />}
+        {train.note && !expanded && <FileText className="note-icon" aria-label={t("Tåget har en anteckning")} />}
         <span className="train-summary-text">{summary}</span>
         <ChevronDown className={`train-chevron ${expanded ? "is-open" : ""}`} aria-hidden="true" />
       </button>
@@ -217,15 +218,15 @@ export function TrainCard({
       {expanded && (
         <div className="train-card-detail">
           <div className="track-control">
-            <label htmlFor={`track-${train.id}`}>Spår</label>
+            <label htmlFor={`track-${train.id}`}>{t("Spår")}</label>
             <select
               id={`track-${train.id}`}
               value={trackLabel ?? ""}
               disabled={actionsDisabled}
               onChange={(event) => onMovementChange({ ...movement, actualTrack: event.target.value })}
             >
-              {!trackLabel && <option value="" disabled>Välj spår</option>}
-              {trackLabel && !availableTracks.includes(trackLabel) && <option value={trackLabel} disabled>{trackLabel} (ej tillgängligt)</option>}
+              {!trackLabel && <option value="" disabled>{t("Välj spår")}</option>}
+              {trackLabel && !availableTracks.includes(trackLabel) && <option value={trackLabel} disabled>{trackLabel} {t("(ej tillgängligt)")}</option>}
               {availableTracks.map((track) => <option key={track}>{track}</option>)}
             </select>
           </div>
@@ -235,14 +236,14 @@ export function TrainCard({
               <div className="movement-detail-row">
                 <span className={`movement-dot ${movement.arrival !== "none" ? "is-active" : ""}`} />
                 <time>{train.arrival_time}</time>
-                <span>Ank från {from ?? "?"}</span>
+                <span>{t("Ank från")} {from ?? "?"}</span>
               </div>
             )}
             {train.departure_time && (
               <div className="movement-detail-row">
                 <span className={`movement-dot ${movement.departure !== "none" ? "is-active" : ""}`} />
                 <time>{train.departure_time}</time>
-                <span>Avg till {to ?? "?"}</span>
+                <span>{t("Avg till")} {to ?? "?"}</span>
               </div>
             )}
           </div>
@@ -257,9 +258,9 @@ export function TrainCard({
                 disabled={busy || actionsDisabled || departureBlocked || (freightMode && action.departure === "departed")}
                 onClick={() => { void runAction(); }}
               >
-                {busy ? "Sparar …" : action.label}
+                {busy ? t("Sparar …") : t(action.label)}
               </button>
-              {departureBlocked && <span className="action-help">Klarering krävs före avgång</span>}
+              {departureBlocked && <span className="action-help">{t("Klarering krävs före avgång")}</span>}
             </div>
           )}
 
@@ -282,8 +283,7 @@ export function TrainCard({
 
           {freightMode && movement.departure === "ready" && (
             <button type="button" className="freight-action">
-              <Package size={16} /> Avisera TKL
-            </button>
+              <Package size={16} /> {t("Avisera TKL")} </button>
           )}
         </div>
       )}
