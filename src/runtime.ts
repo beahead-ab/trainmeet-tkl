@@ -52,6 +52,13 @@ export function routeNeighbors(
 }
 
 export function stationTracks(snapshot: RuntimeSnapshot, stationId: string): string[] {
+  if (snapshot.tracks !== undefined) {
+    return [...new Set(snapshot.tracks
+      .filter((track) => track.station_id === stationId && track.active !== false)
+      .sort((a, b) => a.sort_order - b.sort_order || a.display_label.localeCompare(b.display_label, "sv", { numeric: true }))
+      .map((track) => track.display_label))];
+  }
+  // Older servers did not include a track catalogue in the display snapshot.
   const tracks = new Set(
     snapshot.trains
       .filter((train) => train.station_id === stationId)
@@ -62,6 +69,24 @@ export function stationTracks(snapshot: RuntimeSnapshot, stationId: string): str
     return ["1a", "1b", "2a", "2b", "3", "4", "11", "12", "13"];
   }
   return [...tracks].sort((a, b) => a.localeCompare(b, "sv", { numeric: true }));
+}
+
+export function movementTrackLabel(
+  snapshot: RuntimeSnapshot,
+  train: TrainRow,
+  movement: LocalMovementState,
+): string | null {
+  const value = movement.actualTrack || train.track;
+  if (!value) return null;
+  if (snapshot.tracks === undefined) return value;
+  // Keep the authoritative ID in movement state; only translate for display.
+  // Optimistic updates (and older servers) can still contain a visible label.
+  const byId = snapshot.tracks.find((track) => track.id === value);
+  if (byId) return byId.station_id === train.station_id ? byId.display_label : null;
+  const matches = snapshot.tracks.filter((track) => (
+    track.station_id === train.station_id && track.display_label.toLocaleLowerCase("sv") === value.toLocaleLowerCase("sv")
+  ));
+  return matches.length === 1 ? matches[0].display_label : null;
 }
 
 export function formatClock(value: string): string {
@@ -114,6 +139,8 @@ function occupantForTrain(
   const departing = movement.departure === "positioned" || movement.departure === "ready";
   const arriving = movement.arrival === "approaching" || movement.arrival === "arrived";
   if (!departing && !arriving) return null;
+  const track = movementTrackLabel(snapshot, train, movement);
+  if (!track) return null;
   const neighbors = routeNeighbors(snapshot, train);
   const neighbor = departing ? neighbors.to : neighbors.from;
   const side = sideForNeighbor(snapshot, train.station_id, neighbor?.id);
@@ -122,7 +149,7 @@ function occupantForTrain(
     : (side === "left" ? "→" : side === "right" ? "←" : "");
   return {
     trainNumber: train.train_number,
-    track: movement.actualTrack || train.track,
+    track,
     status: departing ? movement.departure as "positioned" | "ready" : movement.arrival as "approaching" | "arrived",
     arrow,
     neighborCode: neighbor?.code,
@@ -163,12 +190,15 @@ export function stationTrackOccupants(
     const train = candidates.find((candidate) => routeNeighbors(snapshot, candidate).to?.id === reserved?.to_station_id)
       ?? candidates[0];
     if (!train) continue;
+    const movement = movements[movementKey(train)] ?? { arrival: "none", departure: "none", lineRequest: "none" };
+    const track = movementTrackLabel(snapshot, train, movement);
+    if (!track) continue;
     const neighbor = snapshot.stations.find((candidate) => candidate.id === reserved?.to_station_id)
       ?? routeNeighbors(snapshot, train).to;
     const side = sideForNeighbor(snapshot, stationId, neighbor?.id);
-    byTrack.set(train.track, {
+    byTrack.set(track, {
       trainNumber: train.train_number,
-      track: train.track,
+      track,
       status: "reserved",
       arrow: side === "right" ? "→" : side === "left" ? "←" : "",
       neighborCode: neighbor?.code,
