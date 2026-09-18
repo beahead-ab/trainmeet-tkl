@@ -18,6 +18,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: npm ci
+      - run: npm test
       - run: npm run build
       - run: python -m unittest discover -s tests -v
       - run: python -m py_compile terminal/trainmeet_tkl_terminal.py
