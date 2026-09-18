@@ -21,6 +21,14 @@ export interface Station {
   is_autonomous?: boolean;
 }
 
+export interface StationTrack {
+  id: string;
+  station_id: string;
+  display_label: string;
+  sort_order: number;
+  active?: boolean;
+}
+
 export interface Connection {
   id: string;
   station_a_id: string;
@@ -101,6 +109,7 @@ export interface RuntimeSnapshot {
   meet: Meet;
   active_day: string;
   stations: Station[];
+  tracks?: StationTrack[];
   connections: Connection[];
   connection_states: ConnectionState[];
   trains: TrainRow[];

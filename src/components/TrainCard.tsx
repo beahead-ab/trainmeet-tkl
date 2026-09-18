@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, FileText, Package, SendHorizontal } from "lucide-react";
-import { routeNeighbors } from "../runtime";
+import { movementTrackLabel, routeNeighbors } from "../runtime";
 import type {
   DepartureStatus,
   LocalMovementState,
@@ -140,6 +140,7 @@ export function TrainCard({
   const from = neighbors.from?.name ?? train.arrival_from;
   const to = neighbors.to?.name ?? train.departure_to;
   const summary = statusLabel(train, movement, from, to);
+  const trackLabel = movementTrackLabel(snapshot, train, movement);
   const action = nextAction(train, movement);
   const dispatchMode = snapshot.meet.default_dispatch_mode ?? "clearance";
   const departureBlocked = action?.departure === "departed"
@@ -206,7 +207,7 @@ export function TrainCard({
         <strong className="train-number">{train.train_number}</strong>
         <span className="train-direction-track">
           <DirectionIcon train={train} />
-          <span>{movement.actualTrack || train.track}</span>
+          <span>{trackLabel ?? "Okänt spår"}</span>
         </span>
         {train.note && !expanded && <FileText className="note-icon" aria-label="Tåget har en anteckning" />}
         <span className="train-summary-text">{summary}</span>
@@ -219,10 +220,12 @@ export function TrainCard({
             <label htmlFor={`track-${train.id}`}>Spår</label>
             <select
               id={`track-${train.id}`}
-              value={movement.actualTrack || train.track}
+              value={trackLabel ?? ""}
               disabled={actionsDisabled}
               onChange={(event) => onMovementChange({ ...movement, actualTrack: event.target.value })}
             >
+              {!trackLabel && <option value="" disabled>Välj spår</option>}
+              {trackLabel && !availableTracks.includes(trackLabel) && <option value={trackLabel} disabled>{trackLabel} (ej tillgängligt)</option>}
               {availableTracks.map((track) => <option key={track}>{track}</option>)}
             </select>
           </div>
