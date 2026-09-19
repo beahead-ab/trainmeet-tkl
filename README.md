@@ -199,7 +199,7 @@ Mac, Raspberry Pi och en internetfrånkopplad mötesplats.
 
 - TrainMeet Server är ensam auktoritet för klocka, tidtabell, linjer och tågens positioner.
 - TKL-klienten läser `/v1/display` och de särskilda `/v1/tkl/*`-gränssnitten men har ingen egen trafikdatabas.
-- TKL innehåller ingen demoträff eller annan inbyggd trafikkonfiguration.
+- Driftläget innehåller ingen egen trafikkonfiguration. Ett uttryckligt fristående webb-demo på `/tkl/?mode=demo` använder fiktiva data och inga trafik-API-anrop.
 - Trafikpass, tågrörelser, överlämningar och sträckkommandon sparas av TrainMeet Server i SQLite och återställs efter omstart.
 - Cachelagrad information är skrivskyddad och kan aldrig påverka serverns trafikläge.
 
@@ -242,3 +242,17 @@ Felrapporter och förbättringsförslag lämnas under [GitHub Issues](https://gi
 ## Licens
 
 MIT © Beahead AB. Se [LICENSE](LICENSE).
+
+## Virtuell TKL på TrainMeet Server
+
+Öppna **TKL** i serverns arbetsytesväljare (`/tkl/`). Ingen operatörsinloggning,
+serveradress, anslutningskod eller station väljs av besökaren. Klienten visar
+en unik enhetskod och väntar. Administratören tilldelar station under serverns
+inställningar. Enhetens begränsade nyckel används, aldrig webbläsarens adminkaka.
+
+Omladdning återanvänder identiteten. Tidigare lokala stationsval ignoreras.
+Serverns omtilldelning byter station och tömmer föregående vy; borttagning
+spärrar åtkomsten utan att klienten registrerar sig på nytt. Utan serverkontakt
+spärras trafikarbetet. En separat installerad Pi-terminal är oförändrad.
+
+Det uttryckliga demoläget `/tkl/?mode=demo` är separat och påverkar aldrig träffen.

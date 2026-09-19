@@ -1,6 +1,7 @@
 import type { RuntimeSnapshot } from "./types";
+import { demoRequest, demoSnapshot, loadDemoConfig, saveDemoConfig, resetDemo } from "./demo";
 
-export type RuntimeSource = "server" | "cache";
+export type RuntimeSource = "server" | "cache" | "demo";
 
 export interface RuntimeResult {
   snapshot: RuntimeSnapshot;
@@ -16,6 +17,7 @@ export interface TerminalConfig {
   station_id: string;
   station_name?: string;
   orientation: "portrait" | "landscape";
+  device_code?: string;
   client_id?: string;
   access_token?: string;
 }
@@ -93,7 +95,36 @@ export interface WifiNetwork {
 }
 
 const browserConfigKey = "trainmeet-tkl.browser-config";
+export const isHostedBrowser = () => window.location?.pathname?.startsWith("/tkl/") ?? false;
+export const isDemoTerminal = () => isHostedBrowser() && new URLSearchParams(window.location.search).get("mode") === "demo";
 
+export const isManagedBrowser = () => isHostedBrowser() && !isDemoTerminal();
+const browserClientKey = "trainmeet-tkl.managed-client";
+type BrowserClient = { client_id: string; device_code: string; workspace: string; station_id: string | null; access_token: string };
+let registration: Promise<BrowserClient> | null = null;
+function storedClient(): BrowserClient | null {
+  return JSON.parse(window.localStorage.getItem(browserClientKey) || "null");
+}
+async function managedClient(): Promise<BrowserClient> {
+  const saved = storedClient();
+  if (saved?.access_token) {
+    // A revoked identity is never silently replaced with a new guest.
+    const current = await readJSON<BrowserClient>("/v1/browser-clients/self");
+    if (current.workspace !== "tkl") throw new Error("Enheten är inte en TKL-klient.");
+    return { ...current, access_token: saved.access_token };
+  }
+  if (!registration) {
+    registration = readJSON<BrowserClient>("/v1/browser-clients", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workspace: "tkl" }),
+    }).then(client => {
+      window.localStorage.setItem(browserClientKey, JSON.stringify(client));
+      return client;
+    });
+    // Keep rejected registration too: retrying POST after a lost response could
+    // create duplicate IDs. An explicit page reload permits a new attempt.
+  }
+  return registration;
+}
 const requestTimeout = 4000;
 const runtimeCacheKey = "trainmeet-tkl.last-runtime";
 
@@ -104,6 +135,9 @@ class APIError extends Error {
 }
 
 async function readJSON<T>(url: string, init?: RequestInit): Promise<T> {
+  // Fail closed: even a future unadapted demo action cannot reach the server.
+  if (isDemoTerminal()) throw new Error("Demo använder inte serverns API.");
+  if (isManagedBrowser() && !url.startsWith("/v1/")) throw new Error("Den lokala servern hanterar klientens inställningar.");
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), requestTimeout);
   try {
@@ -111,6 +145,10 @@ async function readJSON<T>(url: string, init?: RequestInit): Promise<T> {
       cache: "no-store",
       credentials: "same-origin",
       ...init,
+      ...(isManagedBrowser() ? {
+        credentials: "omit" as RequestCredentials,
+        headers: { ...init?.headers, ...(storedClient()?.access_token ? { Authorization: "Bearer " + storedClient()!.access_token } : {}) },
+      } : {}),
       signal: controller.signal,
     });
     if (!response.ok) {
@@ -131,6 +169,8 @@ async function readJSON<T>(url: string, init?: RequestInit): Promise<T> {
 
 async function terminalOrServer<T>(terminalPath: string, serverPath: string, init?: RequestInit): Promise<T> {
   try {
+    if (isDemoTerminal()) return demoRequest(serverPath, init) as T;
+    if (isManagedBrowser()) return await readJSON<T>(serverPath, init);
     try {
       return await readJSON<T>(terminalPath, init);
     } catch (error) {
@@ -147,6 +187,10 @@ async function terminalOrServer<T>(terminalPath: string, serverPath: string, ini
 }
 
 export async function loadAuthStatus(): Promise<AuthStatus> {
+  if (isManagedBrowser()) await managedClient();
+  if (isDemoTerminal() || isManagedBrowser()) {
+    return { authenticated: true, access_mode: "terminal", password_configured: false, must_change_password: false };
+  }
   return terminalOrServer<AuthStatus>("/terminal/auth", "/v1/auth/status");
 }
 
@@ -234,6 +278,13 @@ export async function performTklLineAction(input: {
 }
 
 export async function loadTerminalConfig(): Promise<TerminalConfig> {
+  if (isDemoTerminal()) return loadDemoConfig();
+  if (isManagedBrowser()) {
+    const client = await managedClient();
+    return { configured: !!client.station_id, terminal_name: "TKL " + client.device_code,
+      server_url: window.location.origin, station_id: client.station_id || "",
+      client_id: client.client_id, device_code: client.device_code, orientation: "portrait" };
+  }
   try {
     return await readJSON<TerminalConfig>("/terminal/config");
   } catch {
@@ -257,6 +308,7 @@ const DEFAULT_BROWSER_CONFIG: TerminalConfig = {
 };
 
 export async function inspectServer(serverUrl: string): Promise<RuntimeSnapshot> {
+  if (isDemoTerminal()) return demoSnapshot();
   try {
     return await readJSON<RuntimeSnapshot>("/terminal/connect", {
       method: "POST",
@@ -296,6 +348,8 @@ export async function connectWifi(ssid: string, password: string): Promise<void>
 }
 
 export async function saveTerminalConfig(config: Omit<TerminalConfig, "configured">): Promise<TerminalConfig> {
+  if (isDemoTerminal()) return saveDemoConfig(config);
+  if (isManagedBrowser()) throw new Error("Stationen tilldelas av administratören på servern.");
   try {
     return await readJSON<TerminalConfig>("/terminal/config", {
       method: "PUT",
@@ -310,6 +364,8 @@ export async function saveTerminalConfig(config: Omit<TerminalConfig, "configure
 }
 
 export async function resetTerminalConfig(): Promise<void> {
+  if (isDemoTerminal()) { resetDemo(); return; }
+  if (isManagedBrowser()) throw new Error("Klienten hanteras av administratören på servern.");
   try {
     await readJSON<{ configured: boolean }>("/terminal/config", { method: "DELETE" });
   } catch {
@@ -346,6 +402,8 @@ function remember(snapshot: RuntimeSnapshot) {
 }
 
 export async function loadRuntime(): Promise<RuntimeResult> {
+  if (isManagedBrowser()) return { snapshot: await readJSON<RuntimeSnapshot>("/v1/display"), source: "server", connected: true };
+  if (isDemoTerminal()) return { snapshot: demoSnapshot(), source: "demo", connected: true };
   try {
     const terminalResult = await readJSON<RuntimeResult>("/terminal/runtime");
     if (terminalResult.source === "server") remember(terminalResult.snapshot);
