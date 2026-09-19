@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import './messages.js';
+import './workspace-messages.js';
 import './core.js';
 
 type Language = 'sv' | 'da' | 'nb' | 'en' | 'de';

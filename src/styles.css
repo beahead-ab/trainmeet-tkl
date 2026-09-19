@@ -1299,7 +1299,8 @@ select:focus-visible {
   gap: 0.5rem;
 }
 
-.menu-list > button {
+.menu-list > button,
+.menu-list > a {
   min-height: 3rem;
   padding: 0 1rem;
   border-radius: 0.75rem;
@@ -1309,6 +1310,9 @@ select:focus-visible {
   font-weight: 500;
   text-align: left;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  text-decoration: none;
 }
 
 .menu-list > button:disabled {

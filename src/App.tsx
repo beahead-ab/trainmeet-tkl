@@ -1,7 +1,8 @@
 import { t, locale } from "./i18n";
+import { authenticatedMessage } from "./auth-message";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft,
+  House,
   Check,
   CircleCheckBig,
   Clock3,
@@ -301,7 +302,7 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
               {auth?.authenticated && (
                 <>
                   <section className="setup-step-card is-success">
-                    <div className="setup-step-heading"><ShieldCheck /><span><strong>{t("Ansluten")}</strong><small>{auth.access_mode === "terminal" ? t("Terminalen är parkopplad och känns igen automatiskt.") : t("Inloggad som {name}.", {name: auth.username})}</small></span></div>
+                    <div className="setup-step-heading"><ShieldCheck /><span><strong>{t("Ansluten")}</strong><small>{messageText(authenticatedMessage(auth))}</small></span></div>
                   </section>
                   <section className="meet-selection">
                     <span className="micro-heading">{t("Aktiv träff")}</span>
@@ -556,6 +557,7 @@ function Header({
   freightMode,
   onFreightToggle,
   onOverlay,
+  onHome,
 }: {
   station: Station;
   snapshot: RuntimeSnapshot;
@@ -563,6 +565,7 @@ function Header({
   freightMode: boolean;
   onFreightToggle: () => void;
   onOverlay: (overlay: Overlay) => void;
+  onHome: () => void;
 }) {
   const adminTimer = useRef<number | null>(null);
   const beginAdminHold = () => {
@@ -575,8 +578,8 @@ function Header({
   return (
     <>
       <header className="app-header">
-        <button type="button" className="icon-button is-outlined" aria-label={t("Tillbaka")} onClick={() => { window.location.href = "/"; }}>
-          <ArrowLeft />
+        <button type="button" className="icon-button is-outlined" aria-label={t("Hem")} onClick={onHome}>
+          <House />
         </button>
         <h1
           onPointerDown={beginAdminHold}
@@ -763,6 +766,16 @@ function OverlayPanel({
 
         {overlay === "menu" && (
           <div className="overlay-content menu-list">
+            {window.location.pathname.startsWith("/tkl/") && <>
+              <a href="/#settings">{t("Inställningar")}</a>
+              <a href="/#screens">{t("Skärmar")}</a>
+              <a href="/#workspaces">{t("Byt arbetsyta")}</a>
+              <button type="button" onClick={() => {
+                void fetch("/v1/auth/logout", {method: "POST", credentials: "same-origin", headers: {"Content-Type": "application/json"}, body: "{}"})
+                  .then((response) => { if (!response.ok) throw new Error(t("Utloggningen misslyckades.")); try { sessionStorage.removeItem("trainmeet.workspace"); } catch { /* private browser */ } window.location.href="/"; })
+                  .catch(() => setShiftError(t("Utloggningen misslyckades.")));
+              }}>{t("Logga ut")}</button>
+            </>}
             <div className="active-operator-card"><UserRound /><span><strong>{shift.operator_name}</strong><small>{t("Trafikpass startat")} {new Date(shift.started_at).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })}</small></span></div>
             <label className="handover-note"><span>{t("Överlämningsanteckning")}</span><textarea value={handoverNote} onChange={(event) => setHandoverNote(event.target.value)} placeholder={t("Valfri information till nästa operatör")} rows={3} /></label>
             {shiftError && <p className="setup-message is-error">{shiftError}</p>}
@@ -797,6 +810,9 @@ export default function App() {
   const firstLoad = useRef(true);
 
   useEffect(() => {
+    if (window.location.pathname.startsWith("/tkl/")) {
+      try { sessionStorage.setItem("trainmeet.workspace", "tkl"); } catch { /* private browser */ }
+    }
     void loadTerminalConfig().then(setTerminalConfig);
   }, []);
 
@@ -827,10 +843,12 @@ export default function App() {
       }
     };
     void refresh();
+    window.addEventListener("trainmeet:context-stale", refresh);
     const timer = window.setInterval(refresh, 3000);
     return () => {
       active = false;
       window.clearInterval(timer);
+      window.removeEventListener("trainmeet:context-stale", refresh);
     };
   }, [terminalConfig, authStatus]);
 
@@ -855,8 +873,9 @@ export default function App() {
       }
     };
     void refreshContext();
+    window.addEventListener("trainmeet:context-stale", refreshContext);
     const timer = window.setInterval(refreshContext, 3000);
-    return () => { active = false; window.clearInterval(timer); };
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener("trainmeet:context-stale", refreshContext); };
   }, [runtime?.snapshot.publication_id, runtime?.source, stationId, authStatus?.authenticated, terminalConfig?.terminal_name]);
 
   useEffect(() => {
@@ -912,7 +931,7 @@ export default function App() {
   if (!tklContext) return <LoadingView />;
 
   const startShift = async (operatorName: string, takeOver: boolean) => {
-    const shift = await startTklShift({ station_id: stationId, operator_name: operatorName, terminal_name: terminalConfig.terminal_name, take_over: takeOver });
+    const shift = await startTklShift({ meet_generation: tklContext.meet_generation, station_id: stationId, operator_name: operatorName, terminal_name: terminalConfig.terminal_name, take_over: takeOver });
     setTklContext((current) => current ? { ...current, shift } : current);
   };
 
@@ -961,21 +980,22 @@ export default function App() {
       const departureConnection = connectionForTrain(train, "departure");
       const arrivalConnection = connectionForTrain(train, "arrival");
         if (next.departure === "ready" && previous.departure !== "ready" && snapshot.meet.default_dispatch_mode === "direct" && departureConnection) {
-          const line = await performTklLineAction({ station_id: station.id, connection_id: departureConnection.id, train_number: train.train_number, action: "request" });
+          const line = await performTklLineAction({ meet_generation: tklContext.meet_generation, station_id: station.id, connection_id: departureConnection.id, train_number: train.train_number, action: "request" });
           setTklContext((current) => current ? { ...current, connection_states: current.connection_states.map((state) => state.id === line.id ? line : state) } : current);
         }
         if (next.departure === "departed" && previous.departure !== "departed" && departureConnection) {
-          const line = await performTklLineAction({ station_id: station.id, connection_id: departureConnection.id, train_number: train.train_number, action: "depart" });
+          const line = await performTklLineAction({ meet_generation: tklContext.meet_generation, station_id: station.id, connection_id: departureConnection.id, train_number: train.train_number, action: "depart" });
           setTklContext((current) => current ? { ...current, connection_states: current.connection_states.map((state) => state.id === line.id ? line : state) } : current);
         }
         if (next.arrival === "arrived" && previous.arrival !== "arrived" && arrivalConnection) {
           const currentLine = tklContext?.connection_states.find((state) => state.id === arrivalConnection.id);
           if (currentLine?.state === "occupied" && currentLine.train_number === train.train_number) {
-            const line = await performTklLineAction({ station_id: station.id, connection_id: arrivalConnection.id, train_number: train.train_number, action: "arrive" });
+            const line = await performTklLineAction({ meet_generation: tklContext.meet_generation, station_id: station.id, connection_id: arrivalConnection.id, train_number: train.train_number, action: "arrive" });
             setTklContext((current) => current ? { ...current, connection_states: current.connection_states.map((state) => state.id === line.id ? line : state) } : current);
           }
         }
       await updateTklMovement({
+          meet_generation: tklContext.meet_generation,
           station_id: station.id,
           movement_id: train.id,
           arrival: next.arrival,
@@ -1000,7 +1020,7 @@ export default function App() {
   const requestLineForTrain = async (train: TrainRow): Promise<"pending" | "confirmed"> => {
     const connection = connectionForTrain(train, "departure");
     if (!connection) throw new Error("Tågets nästa sträcka kunde inte bestämmas.");
-    const line = await performTklLineAction({ station_id: station.id, connection_id: connection.id, train_number: train.train_number, action: "request" });
+    const line = await performTklLineAction({ meet_generation: tklContext.meet_generation, station_id: station.id, connection_id: connection.id, train_number: train.train_number, action: "request" });
     setTklContext((current) => current ? { ...current, connection_states: current.connection_states.map((state) => state.id === line.id ? line : state) } : current);
     return line.state === "reserved" ? "confirmed" : "pending";
   };
@@ -1008,14 +1028,14 @@ export default function App() {
   const handleLineCase = async (lineState: RuntimeSnapshot["connection_states"][number], action: "accept" | "reject" | "cancel" | "arrive") => {
     setBusyLineId(lineState.id);
     try {
-      const line = await performTklLineAction({ station_id: station.id, connection_id: lineState.id, train_number: lineState.train_number || "", action });
+      const line = await performTklLineAction({ meet_generation: tklContext.meet_generation, station_id: station.id, connection_id: lineState.id, train_number: lineState.train_number || "", action });
       setTklContext((current) => current ? { ...current, connection_states: current.connection_states.map((state) => state.id === line.id ? line : state) } : current);
       if (action === "arrive" && lineState.train_number) {
         const movement = activeTrains.find((train) => train.train_number === lineState.train_number && train.arrival_time);
         if (movement) {
           const key = movementKey(movement);
           const next = { ...stateFor(movement), arrival: "arrived" as const };
-          await updateTklMovement({ station_id: station.id, movement_id: movement.id, arrival: next.arrival, departure: next.departure, actual_track: next.actualTrack || movement.track, event_type: "arrival_arrived" });
+          await updateTklMovement({ meet_generation: tklContext.meet_generation, station_id: station.id, movement_id: movement.id, arrival: next.arrival, departure: next.departure, actual_track: next.actualTrack || movement.track, event_type: "arrival_arrived" });
           setMovementState((current) => ({ ...current, [key]: next }));
         }
         setReceipt(`Tåg ${lineState.train_number} har ankommit till ${station.name}. Sträckan är fri.`);
@@ -1083,6 +1103,7 @@ export default function App() {
           freightMode={freightMode}
           onFreightToggle={() => setFreightMode((value) => !value)}
           onOverlay={setOverlay}
+          onHome={() => { setOverlay(null); setSelectedTrain(null); setFreightMode(false); window.scrollTo({top: 0}); }}
         />
 
         <div className="diagram-sticky">
@@ -1164,7 +1185,7 @@ export default function App() {
           onFinishShift={async (status, note) => {
             const activeShift = tklContext.shift;
             if (!activeShift) return;
-            await finishTklShift({ station_id: station.id, shift_id: activeShift.shift_id, status, note });
+            await finishTklShift({ meet_generation: tklContext.meet_generation, station_id: station.id, shift_id: activeShift.shift_id, status, note });
             setOverlay(null);
             setFinishedShift({ shift: activeShift, status });
           }}
