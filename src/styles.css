@@ -2301,3 +2301,18 @@ select:focus-visible {
 .language-toolbar { min-height: 44px; display: flex; justify-content: flex-end; align-items: center; padding: 6px 16px; background: #fafafa; color: #20242a; border-bottom: 1px solid #e5e7eb; }
 .language-picker { display: inline-flex; flex-direction: row; align-items: center; gap: 10px; margin: 0; font-size: 14px; font-weight: 400; }
 .language-picker select { width: auto; min-width: 142px; min-height: 32px; padding: 4px 10px; font: inherit; background: white; color: #20242a; }
+.demo-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem 1rem;
+  padding: 1rem;
+  color: #4c3507;
+  background: #fff0c2;
+  border-bottom: 2px solid #d8ad43;
+}
+.demo-notice > span { flex: 1 1 24rem; font-size: .9rem; }
+.demo-notice > div { display: flex; align-items: center; gap: 1rem; }
+.demo-notice button { padding: .5rem .8rem; border: 1px solid currentColor; border-radius: .5rem; background: transparent; color: inherit; cursor: pointer; }
+.demo-notice a { color: inherit; }

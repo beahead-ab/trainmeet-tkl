@@ -22,6 +22,9 @@ import {
 } from "lucide-react";
 import {
   inspectServer,
+  isHostedBrowser,
+  isDemoTerminal,
+  isManagedBrowser,
   checkTerminalUpdate,
   connectWifi,
   discoverServers,
@@ -86,6 +89,7 @@ function LoadingView() {
 }
 
 function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapshot: RuntimeSnapshot, auth: AuthStatus) => void }) {
+  const hosted = isDemoTerminal();
   const [serverUrl, setServerUrl] = useState(() => (
     window.location.port === "8790" ? "http://trainmeet.local:8787" : window.location.origin
   ));
@@ -171,17 +175,20 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
         const status = await loadAuthStatus();
         setAuth(status);
         setUsername(status.username || "");
-      } catch {
+      } catch (error) {
+        if (hosted) throw error;
         setAuth({ authenticated: false, access_mode: "external", username: "", password_configured: true, must_change_password: false });
       }
-    } catch {
+    } catch (error) {
       setSnapshot(null);
-      setMessage("Servern kunde inte nås. Kontrollera adress, nätverk och att TrainMeet Server är igång.");
+      setMessage(error instanceof Error ? error.message : "Servern kunde inte nås. Kontrollera adress, nätverk och att TrainMeet Server är igång.");
       setMessageKind("error");
     } finally {
       setBusy(false);
     }
   };
+
+  useEffect(() => { if (hosted) void connect(); }, []);
 
   const authenticate = async () => {
     if (!auth) return;
@@ -217,7 +224,7 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
         station_name: station?.name,
         orientation,
       });
-      window.localStorage.setItem("trainmeet-tkl.station-id", stationId);
+      if (!isDemoTerminal()) window.localStorage.setItem("trainmeet-tkl.station-id", stationId);
       onComplete(saved, snapshot, auth);
     } catch {
       setMessage("Terminalprofilen kunde inte sparas.");
@@ -231,18 +238,21 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
     <main className="setup-view">
       <div className="setup-card">
         <div className="setup-brand"><TrainMeetLogo /><span>{t("TrainMeet TKL Terminal")}</span></div>
+        {hosted && <a href="/#workspaces">{t("Byt arbetsyta")}</a>}
         <span className="micro-heading">{t("Första starten")}</span>
         <h1>{t("Koppla terminalen till stationen")}</h1>
         <p className="setup-intro">{t("Valet sparas i apparaten. Efter nästa omstart öppnas TKL-vyn direkt på den valda stationen.")}</p>
 
-        <div className="setup-progress" aria-label={t("Installationens steg")}>
+        {!hosted && <div className="setup-progress" aria-label={t("Installationens steg")}>
           <span className="is-complete"><b>1</b>{t("Anslut")}</span>
           <span className={snapshot ? "is-complete" : ""}><b>2</b>{t("Logga in")}</span>
           <span className={auth?.authenticated ? "is-complete" : ""}><b>3</b>{t("Träff")}</span>
           <span className={stationId && auth?.authenticated ? "is-complete" : ""}><b>4</b>{t("Station")}</span>
-        </div>
+        </div>}
+        {hosted && <p className="setup-intro">{t("Fristående demo med två övningsstationer. Inget skickas till trafikspelet.")}</p>}
 
         <div className="setup-fields">
+          {!hosted && <>
           <details className="wifi-setup">
             <summary>{t("Wi-Fi och nätverk")}</summary>
             <div className="wifi-setup-content">
@@ -282,10 +292,12 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
               ))}
             </div>
           )}
+          </>}
+          {hosted && !snapshot && <button type="button" onClick={connect} disabled={busy}>{t("Försök igen")}</button>}
 
           {snapshot && (
             <>
-              {!auth?.authenticated && (
+              {!hosted && !auth?.authenticated && (
                 <section className="setup-step-card">
                   <div className="setup-step-heading"><LogIn /><span><strong>{auth?.access_mode === "terminal" ? t("Parkoppla terminalen") : t("Logga in")}</strong><small>{auth?.access_mode === "terminal" ? t("Använd anslutningskoden från TrainMeet Server.") : t("Extern anslutning kräver serverns administratörskonto.")}</small></span></div>
                   {auth?.access_mode === "terminal" ? (
@@ -302,7 +314,7 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
               {auth?.authenticated && (
                 <>
                   <section className="setup-step-card is-success">
-                    <div className="setup-step-heading"><ShieldCheck /><span><strong>{t("Ansluten")}</strong><small>{messageText(authenticatedMessage(auth))}</small></span></div>
+                    <div className="setup-step-heading"><ShieldCheck /><span><strong>{t(hosted ? "Demo" : "Ansluten")}</strong><small>{hosted ? t("Fristående demo med två övningsstationer. Inget skickas till trafikspelet.") : messageText(authenticatedMessage(auth))}</small></span></div>
                   </section>
                   <section className="meet-selection">
                     <span className="micro-heading">{t("Aktiv träff")}</span>
@@ -395,6 +407,7 @@ function AuthenticationView({
     <main className="setup-view auth-view">
       <div className="setup-card auth-card">
         <div className="setup-brand"><TrainMeetLogo /><span>{t("TrainMeet TKL")}</span></div>
+        {isHostedBrowser() && <a href="/#workspaces">{t("Byt arbetsyta")}</a>}
         <span className="micro-heading">{terminalConfig.station_name || terminalConfig.terminal_name}</span>
         <h1>{status.access_mode === "terminal" ? t("Parkoppla terminalen igen") : t("Logga in för att fortsätta")}</h1>
         <p className="setup-intro">{status.access_mode === "terminal" ? t("Terminalens tidigare behörighet gäller inte längre. Ange anslutningskoden från TrainMeet Server.") : t("Din station och terminalprofil finns kvar efter inloggningen.")}</p>
@@ -430,7 +443,7 @@ function ShiftStartView({
   const [error, setError] = useState("");
   const active = context.shift;
   const checks = [
-    { label: "TrainMeet Server", ok: context.preflight.server_online, detail: t("Ansluten") },
+    { label: isDemoTerminal() ? "Fristående demo" : "TrainMeet Server", ok: context.preflight.server_online, detail: t(isDemoTerminal() ? "Demo" : "Ansluten") },
     { label: "Träffklocka", ok: context.preflight.clock_configured, detail: context.preflight.clock_running ? t("Går") : t("Står still") },
     { label: "Stationsspår", ok: context.preflight.track_count > 0, detail: t("{count} spår", {count: context.preflight.track_count}) },
     { label: "Anslutningar", ok: context.preflight.connection_count > 0, detail: t("{count} sträckor", {count: context.preflight.connection_count}) },
@@ -440,7 +453,7 @@ function ShiftStartView({
     setBusy(true);
     setError("");
     try {
-      window.localStorage.setItem("trainmeet-tkl.operator-name", operatorName.trim());
+      if (!isDemoTerminal()) window.localStorage.setItem("trainmeet-tkl.operator-name", operatorName.trim());
       await onStart(operatorName.trim(), Boolean(active));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Trafikpasset kunde inte startas.");
@@ -595,8 +608,8 @@ function Header({
           <Clock3 />
           {formatClock(snapshot.clock.time)}
         </span>
-        <span className={`connection-indicator ${source === "server" ? "is-online" : "is-offline"}`} title={source === "server" ? t("Ansluten till TrainMeet Server") : t("Offline – senast kända läge")}>
-          <Wifi />
+        <span className={`connection-indicator ${source !== "cache" ? "is-online" : "is-offline"}`} title={source === "demo" ? t("Fristående demo") : source === "server" ? t("Ansluten till TrainMeet Server") : t("Offline – senast kända läge")}>
+          {source === "demo" ? <Gamepad2 /> : <Wifi />}
         </span>
         <button type="button" className="icon-button message-button" aria-label={t("Meddelanden")}>
           <MessageCircle />
@@ -656,7 +669,7 @@ function OverlayPanel({
   const [finishingShift, setFinishingShift] = useState(false);
   const [shiftError, setShiftError] = useState("");
   useEffect(() => {
-    if (overlay !== "settings") return;
+    if (overlay !== "settings" || isManagedBrowser()) return;
     void checkTerminalUpdate().then((status) => {
       setUpdateAvailable(Boolean(status.supported && status.update_available));
       setUpdateStatus(status.check_error || (status.update_available
@@ -714,10 +727,11 @@ function OverlayPanel({
           <div className="overlay-content form-stack">
             <label>
               <span>{t("Station")}</span>
-              <select value={station.id} onChange={(event) => onStationChange(event.target.value)}>
+              <select disabled={isManagedBrowser()} value={station.id} onChange={(event) => onStationChange(event.target.value)}>
                 {snapshot.stations.map((candidate) => <option value={candidate.id} key={candidate.id}>{candidate.name}</option>)}
               </select>
             </label>
+            {isManagedBrowser() && <p>{t("Stationen tilldelas av administratören på servern.")}</p>}
             <fieldset>
               <legend>{t("Tema")}</legend>
               <div className="theme-grid">
@@ -730,15 +744,15 @@ function OverlayPanel({
               </div>
             </fieldset>
             <div className="info-card">
-              <strong>{source === "server" ? "TrainMeet Server" : t("Offline")}</strong>
-              <p>{source === "server" ? "Vyn uppdateras från serverns gemensamma driftstatus." : "Servern kan inte nås. Senast kända läge visas och trafikåtgärderna är spärrade."}</p>
+              <strong>{source === "demo" ? t("Fristående demo") : source === "server" ? "TrainMeet Server" : t("Offline")}</strong>
+              <p>{source === "demo" ? t("Fristående demo med två övningsstationer. Inget skickas till trafikspelet.") : source === "server" ? "Vyn uppdateras från serverns gemensamma driftstatus." : "Servern kan inte nås. Senast kända läge visas och trafikåtgärderna är spärrade."}</p>
             </div>
-            <button type="button" className="reconfigure-button" onClick={onReconfigure}>{t("Kör första installationen igen")}</button>
+            {!isManagedBrowser() && <><button type="button" className="reconfigure-button" onClick={onReconfigure}>{t("Kör första installationen igen")}</button>
             <div className="terminal-update-card">
               <span className="micro-heading">{t("Programvara")}</span>
               <p>{updateStatus || "Kontrollerar version …"}</p>
               {updateAvailable && <button type="button" onClick={() => { void installUpdate(); }} disabled={updating}>{updating ? "Installerar …" : "Installera uppdatering"}</button>}
-            </div>
+            </div></>}
           </div>
         )}
 
@@ -770,11 +784,6 @@ function OverlayPanel({
               <a href="/#settings">{t("Inställningar")}</a>
               <a href="/#screens">{t("Skärmar")}</a>
               <a href="/#workspaces">{t("Byt arbetsyta")}</a>
-              <button type="button" onClick={() => {
-                void fetch("/v1/auth/logout", {method: "POST", credentials: "same-origin", headers: {"Content-Type": "application/json"}, body: "{}"})
-                  .then((response) => { if (!response.ok) throw new Error(t("Utloggningen misslyckades.")); try { sessionStorage.removeItem("trainmeet.workspace"); } catch { /* private browser */ } window.location.href="/"; })
-                  .catch(() => setShiftError(t("Utloggningen misslyckades.")));
-              }}>{t("Logga ut")}</button>
             </>}
             <div className="active-operator-card"><UserRound /><span><strong>{shift.operator_name}</strong><small>{t("Trafikpass startat")} {new Date(shift.started_at).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })}</small></span></div>
             <label className="handover-note"><span>{t("Överlämningsanteckning")}</span><textarea value={handoverNote} onChange={(event) => setHandoverNote(event.target.value)} placeholder={t("Valfri information till nästa operatör")} rows={3} /></label>
@@ -792,9 +801,58 @@ function OverlayPanel({
   );
 }
 
+function ManagedTerminal() {
+  const [config, setConfig] = useState<TerminalConfig | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let active = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const refresh = async () => {
+      try {
+        const next = await loadTerminalConfig();
+        if (!active) return;
+        setError("");
+        setConfig(current => JSON.stringify(current) === JSON.stringify(next) ? current : next);
+      } catch (failure) {
+        if (active) setError(failure instanceof Error ? failure.message : "Servern kan inte nås.");
+      }
+      if (active) timer = setTimeout(refresh, 2000);
+    };
+    void refresh();
+    return () => { active = false; clearTimeout(timer); };
+  }, []);
+  if (config?.configured && !error) return <TerminalApp key={config.client_id + ":" + config.station_id} initialConfig={config} />;
+  return <main className="setup-view"><section className="setup-card" aria-live="polite">
+    <TrainFront size={48} /><h1>{t("TKL")}</h1>
+    <h2>{t("Väntar på administratören")}</h2>
+    {config?.device_code && <p><strong>{config.device_code}</strong></p>}
+    <p>{t("Visa enhetskoden för administratören. Stationen tilldelas på TrainMeet Server.")}</p>
+    <p>{t("Du kan inte påverka trafiken innan en station har tilldelats.")}</p>
+    {error && <p role="alert">{error}</p>}
+    <a href="/#workspaces">{t("Byt arbetsyta")}</a>
+  </section></main>;
+}
+
 export default function App() {
+  if (isManagedBrowser()) return <ManagedTerminal />;
+  return <>
+    {isDemoTerminal() && <aside className="demo-notice" role="note">
+      <strong>{t("TKL Demo – påverkar inte träffen")}</strong>
+      <span>{t("Klockan står på 06:00. Öva med direktklarering och byt demostation för att ta emot tåget.")}</span>
+      <select aria-label={t("Byt demostation")} value="" onChange={(event) => {
+        const station_id = event.target.value;
+        if (!station_id) return;
+        void loadTerminalConfig().then(config => saveTerminalConfig({...config, station_id})).then(() => window.location.reload());
+      }}><option value="">{t("Byt demostation")}</option><option value="demo-a">Alpby</option><option value="demo-b">Björkstad</option></select>
+      <div><a href="/#workspaces">{t("Byt arbetsyta")}</a><button type="button" onClick={() => { void resetTerminalConfig().then(() => window.location.reload()); }}>{t("Börja om demo")}</button></div>
+    </aside>}
+    <TerminalApp />
+  </>;
+}
+
+function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {}) {
   const [runtime, setRuntime] = useState<RuntimeResult | null>(null);
-  const [terminalConfig, setTerminalConfig] = useState<TerminalConfig | null>(null);
+  const [terminalConfig, setTerminalConfig] = useState<TerminalConfig | null>(initialConfig || null);
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
   const [tklContext, setTklContext] = useState<TklContext | null>(null);
   const [runtimeError, setRuntimeError] = useState(false);
@@ -813,7 +871,7 @@ export default function App() {
     if (window.location.pathname.startsWith("/tkl/")) {
       try { sessionStorage.setItem("trainmeet.workspace", "tkl"); } catch { /* private browser */ }
     }
-    void loadTerminalConfig().then(setTerminalConfig);
+    if (!initialConfig) void loadTerminalConfig().then(setTerminalConfig);
   }, []);
 
   useEffect(() => {
@@ -834,7 +892,7 @@ export default function App() {
         setRuntimeError(false);
         if (firstLoad.current) {
           const configuredStation = result.snapshot.stations.find((station) => station.id === terminalConfig.station_id);
-          setStationId(configuredStation?.id ?? defaultStation(result.snapshot).id);
+          setStationId(configuredStation?.id ?? (isManagedBrowser() ? null : defaultStation(result.snapshot).id));
           firstLoad.current = false;
         }
       } catch (error) {
@@ -867,6 +925,7 @@ export default function App() {
           lineRequest: "none",
         }])));
       } catch (error) {
+        if (active && isManagedBrowser()) setTklContext(null);
         if (active && error instanceof Error && /401|inloggning|authentication|behörighet/i.test(error.message)) {
           setAuthStatus((current) => current ? { ...current, authenticated: false } : current);
         }
@@ -887,16 +946,18 @@ export default function App() {
   if (!terminalConfig.configured) return <SetupView onComplete={(config, snapshot, auth) => {
     setTerminalConfig(config);
     setAuthStatus(auth);
-    setRuntime({ snapshot, source: "server", connected: true });
+    setRuntime({ snapshot, source: isDemoTerminal() ? "demo" : "server", connected: true });
     setStationId(config.station_id);
   }} />;
   if (!authStatus) return <LoadingView />;
+  if (!authStatus.authenticated && isManagedBrowser()) return <UnavailableView onRetry={() => window.location.reload()} />;
   if (!authStatus.authenticated) return <AuthenticationView status={authStatus} terminalConfig={terminalConfig} onAuthenticated={setAuthStatus} onReconfigure={() => { void resetTerminalConfig().then(() => window.location.reload()); }} />;
   if (runtimeError && !runtime) return <UnavailableView onRetry={() => window.location.reload()} />;
   if (!runtime || !stationId) return <LoadingView />;
 
   const { snapshot, source } = runtime;
   const station = snapshot.stations.find((candidate) => candidate.id === stationId) ?? snapshot.stations[0];
+  if (isManagedBrowser() && station.id !== terminalConfig.station_id) return <LoadingView />;
   const tracks = stationTracks(snapshot, station.id);
   const trackOccupants = stationTrackOccupants(snapshot, station.id, movementState);
   const onLineNumbers = new Set(snapshot.train_positions.filter((position) => position.status === "connection").map((position) => position.train_number));
@@ -939,14 +1000,16 @@ export default function App() {
   if (!tklContext.shift) return <ShiftStartView context={tklContext} terminalName={terminalConfig.terminal_name} onStart={startShift} />;
 
   const selectStation = (nextStationId: string) => {
+    if (isManagedBrowser()) return;
     setStationId(nextStationId);
     setSelectedTrain(null);
-    window.localStorage.setItem("trainmeet-tkl.station-id", nextStationId);
+    if (!isDemoTerminal()) window.localStorage.setItem("trainmeet-tkl.station-id", nextStationId);
     setOverlay(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const assignStation = async (nextStationId: string) => {
+    if (isManagedBrowser()) return;
     const nextStation = snapshot.stations.find((candidate) => candidate.id === nextStationId);
     if (!nextStation) return;
     const { configured: _configured, ...current } = terminalConfig;
