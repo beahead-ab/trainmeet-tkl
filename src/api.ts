@@ -23,7 +23,7 @@ export interface TerminalConfig {
 export interface AuthStatus {
   authenticated: boolean;
   access_mode: "local" | "external" | "terminal";
-  username: string;
+  username?: string | null;
   password_configured: boolean;
   must_change_password: boolean;
 }
@@ -42,6 +42,7 @@ export interface TklShift {
 export interface TklContext {
   protocol_version: number;
   publication_id: string;
+  meet_generation?: number;
   meet: RuntimeSnapshot["meet"];
   active_day: string;
   station: RuntimeSnapshot["stations"][number];
@@ -130,10 +131,18 @@ async function readJSON<T>(url: string, init?: RequestInit): Promise<T> {
 
 async function terminalOrServer<T>(terminalPath: string, serverPath: string, init?: RequestInit): Promise<T> {
   try {
-    return await readJSON<T>(terminalPath, init);
+    try {
+      return await readJSON<T>(terminalPath, init);
+    } catch (error) {
+      if (!(error instanceof APIError) || error.status !== 404) throw error;
+      return await readJSON<T>(serverPath, init);
+    }
   } catch (error) {
-    if (!(error instanceof APIError) || error.status !== 404) throw error;
-    return readJSON<T>(serverPath, init);
+    // Refresh the presented context, but never replay an operational command.
+    if (init?.method === "POST" && error instanceof APIError && error.status === 409) {
+      window.dispatchEvent(new Event("trainmeet:context-stale"));
+    }
+    throw error;
   }
 }
 
@@ -163,6 +172,7 @@ export async function loadTklContext(stationId: string): Promise<TklContext> {
 }
 
 export async function startTklShift(input: {
+  meet_generation?: number;
   station_id: string;
   operator_name: string;
   terminal_name: string;
@@ -177,6 +187,7 @@ export async function startTklShift(input: {
 }
 
 export async function finishTklShift(input: {
+  meet_generation?: number;
   station_id: string;
   shift_id: string;
   status: "handover" | "closed";
@@ -191,6 +202,7 @@ export async function finishTklShift(input: {
 }
 
 export async function updateTklMovement(input: {
+  meet_generation?: number;
   station_id: string;
   movement_id: string;
   arrival: "none" | "approaching" | "arrived";
@@ -207,6 +219,7 @@ export async function updateTklMovement(input: {
 }
 
 export async function performTklLineAction(input: {
+  meet_generation?: number;
   station_id: string;
   connection_id: string;
   train_number: string;
