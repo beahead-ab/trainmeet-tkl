@@ -1560,6 +1560,38 @@ select:focus-visible {
   gap: 0.5rem;
 }
 
+/* Anslutningskoden: en ruta per siffra, delade tre och tre av ett streck.
+   Rutorna visar kodens längd och var den delas utan att någon behöver fråga om
+   strecket ska skrivas. Servern tar ändå emot koden hur den än skrivs. */
+.code-boxes {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+.code-boxes input {
+  width: 2.6rem;
+  min-height: 3rem;
+  padding: 0;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.6rem;
+  background: hsl(var(--background));
+  color: inherit;
+  font-family: ui-monospace, Menlo, Monaco, Consolas, monospace;
+  font-size: 1.35rem;
+  font-weight: 600;
+  text-align: center;
+}
+.code-boxes input:focus-visible {
+  outline: 2px solid hsl(var(--ring, var(--foreground)));
+  outline-offset: 1px;
+}
+.code-boxes-dash {
+  color: hsl(var(--muted-foreground, var(--foreground)));
+  font-size: 1.2rem;
+  user-select: none;
+}
+
 .setup-auth-button {
   min-height: 2.75rem;
   border-radius: 9999px;

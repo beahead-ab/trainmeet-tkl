@@ -48,6 +48,7 @@ import {
   type TklContext,
   type TklShift,
 } from "./api";
+import { CodeBoxes } from "./components/CodeBoxes";
 import { StationDiagram } from "./components/StationDiagram";
 import { TrainCard } from "./components/TrainCard";
 import {
@@ -301,7 +302,7 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
                 <section className="setup-step-card">
                   <div className="setup-step-heading"><LogIn /><span><strong>{auth?.access_mode === "terminal" ? t("Parkoppla terminalen") : t("Logga in")}</strong><small>{auth?.access_mode === "terminal" ? t("Använd anslutningskoden från TrainMeet Server.") : t("Extern anslutning kräver serverns administratörskonto.")}</small></span></div>
                   {auth?.access_mode === "terminal" ? (
-                    <input value={pairingCode} onChange={(event) => setPairingCode(event.target.value)} placeholder={t("Anslutningskod, exempelvis 123-456")} inputMode="numeric" />
+                    <CodeBoxes value={pairingCode} onChange={setPairingCode} label={t("Anslutningskod")} />
                   ) : (
                     <div className="login-fields">
                       <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder={t("Användarnamn")} autoComplete="username" />
@@ -413,7 +414,7 @@ function AuthenticationView({
         <p className="setup-intro">{status.access_mode === "terminal" ? t("Terminalens tidigare behörighet gäller inte längre. Ange anslutningskoden från TrainMeet Server.") : t("Din station och terminalprofil finns kvar efter inloggningen.")}</p>
         <div className="login-fields">
           {status.access_mode === "terminal" ? (
-            <input value={pairingCode} onChange={(event) => setPairingCode(event.target.value)} placeholder={t("Anslutningskod")} inputMode="numeric" />
+            <CodeBoxes value={pairingCode} onChange={setPairingCode} label={t("Anslutningskod")} />
           ) : (
             <>
               <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder={t("Användarnamn")} autoComplete="username" />
