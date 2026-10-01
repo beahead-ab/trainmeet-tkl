@@ -413,7 +413,7 @@ function AuthenticationView({
         <span className="micro-heading">{terminalConfig.station_name || terminalConfig.terminal_name}</span>
         <h1>{status.access_mode === "terminal" ? t("Parkoppla terminalen igen") : t("Logga in för att fortsätta")}</h1>
         <p className="setup-intro">{status.access_mode === "terminal" ? t("Terminalens tidigare behörighet gäller inte längre. Ange anslutningskoden från TrainMeet Server.") : t("Din station och terminalprofil finns kvar efter inloggningen.")}</p>
-        <div className="login-fields">
+        <div className={status.access_mode === "terminal" ? "login-fields is-code" : "login-fields"}>
           {status.access_mode === "terminal" ? (
             <CodeBoxes value={pairingCode} onChange={setPairingCode} label={t("Anslutningskod")} />
           ) : (
