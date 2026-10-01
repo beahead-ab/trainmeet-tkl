@@ -1,5 +1,6 @@
 import { t, locale } from "./i18n";
 import { authenticatedMessage } from "./auth-message";
+import { accessLost } from "./access-lost";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   House,
@@ -927,7 +928,7 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
         }])));
       } catch (error) {
         if (active && isManagedBrowser()) setTklContext(null);
-        if (active && error instanceof Error && /401|inloggning|authentication|behörighet/i.test(error.message)) {
+        if (active && error instanceof Error && accessLost(error.message)) {
           setAuthStatus((current) => current ? { ...current, authenticated: false } : current);
         }
       }
