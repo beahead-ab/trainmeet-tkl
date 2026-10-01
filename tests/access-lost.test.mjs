@@ -7,8 +7,8 @@ const source = await readFile(new URL('../src/access-lost.ts', import.meta.url),
 const {outputText} = ts.transpileModule(source, {compilerOptions: {module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022}});
 const {accessLost} = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
 
-test('after a new meet the Server says the terminal lacks the station: ask for the code again', () => {
-  for (const message of ['Terminalen har inte tillgång till stationen', 'HTTP Error 403: Forbidden', 'HTTP Error 401: Unauthorized',
+test('removed under Klienter, or a new meet without the station: ask for the code again', () => {
+  for (const message of ['Terminalen har inte tillgång till stationen', 'Parkopplingen gäller inte längre', 'HTTP Error 403: Forbidden', 'HTTP Error 401: Unauthorized',
     'Inloggning krävs', 'Authentication required', 'Saknar behörighet']) {
     assert.equal(accessLost(message), true, message);
   }

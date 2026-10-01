@@ -1940,6 +1940,16 @@ select:focus-visible {
   width: min(30rem, 100%);
 }
 
+/* Fälten för att parkoppla igen eller logga in, med luft ovanför Fortsätt.
+   Kodrutorna tar hela bredden och står mitt i kortet. */
+.auth-card .login-fields {
+  margin-bottom: 1.25rem;
+}
+
+.login-fields.is-code {
+  grid-template-columns: 1fr;
+}
+
 .text-action {
   width: 100%;
   margin-top: 1rem;

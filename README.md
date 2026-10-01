@@ -38,7 +38,7 @@ Terminalen har ett avsiktligt tydligt start- och slutläge:
      - under **Inställningar → Anslutning**.
    - Skriv adressen under *TrainMeet Server* och tryck **Anslut**. Skriv sedan koden i rutorna under *Anslutningskod* och tryck **Fortsätt**.
    - Koden finns bara när den aktiva träffen i Cloud har stationspaneler. TKL kan bara hantera stationer som har en panel.
-   - Byter servern träff ber terminalen om koden igen.
+   - Byter servern träff, eller tas ställverket bort under Klienter, ber terminalen om koden igen.
 3. **Välj träff och station.** Den aktiva träffen kommer från servern och stationen sparas permanent i terminalprofilen.
 4. **Ta stationen i tjänst.** Operatören ser serverkontakt, träffklocka, spår, anslutningar, tidtabell och eventuella pågående trafikärenden innan trafikpasset startas.
 5. **Kör trafikpasset.** Pågående ärenden och de närmaste tågen visas direkt. Hela dagens tidtabell finns kvar utfällbar. Tågklarering och tågrörelser sparas centralt på servern.
