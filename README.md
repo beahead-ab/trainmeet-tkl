@@ -32,7 +32,13 @@ Efter omstart öppnas första-start-guiden automatiskt. Välj Wi-Fi vid behov, T
 Terminalen har ett avsiktligt tydligt start- och slutläge:
 
 1. **Anslut** terminalen till TrainMeet Server.
-2. **Koppla eller logga in.** En fysisk Pi kopplas en gång med serverns sexsiffriga kod. Webbläsarversionen använder serverns vanliga admininloggning.
+2. **Koppla terminalen.** En fysisk Pi kopplas en gång med serverns sexsiffriga anslutningskod.
+   - På TrainMeet Server finns koden och adressen på två ställen:
+     - i Drift, i kortet **Anslut ställverk och appar** under Klienter;
+     - under **Inställningar → Anslutning**.
+   - Skriv adressen under *TrainMeet Server* och tryck **Anslut**. Skriv sedan koden i rutorna under *Anslutningskod* och tryck **Fortsätt**.
+   - Koden finns bara när den aktiva träffen i Cloud har stationspaneler. TKL kan bara hantera stationer som har en panel.
+   - Byter servern träff ber terminalen om koden igen.
 3. **Välj träff och station.** Den aktiva träffen kommer från servern och stationen sparas permanent i terminalprofilen.
 4. **Ta stationen i tjänst.** Operatören ser serverkontakt, träffklocka, spår, anslutningar, tidtabell och eventuella pågående trafikärenden innan trafikpasset startas.
 5. **Kör trafikpasset.** Pågående ärenden och de närmaste tågen visas direkt. Hela dagens tidtabell finns kvar utfällbar. Tågklarering och tågrörelser sparas centralt på servern.
@@ -71,20 +77,9 @@ Klienten försöker läsa `/v1/display` från TrainMeet Server. Vites utveckling
 npm run build
 ```
 
-`dist/` är en helt statisk applikation. Samma byggda UI distribueras på två sätt:
+`dist/` är en helt statisk applikation. Den installeras tillsammans med det lokala apparatlagret på en separat Raspberry Pi och öppnas automatiskt i Chromium-kiosk.
 
-- **TrainMeet Server:** publiceras under `/tkl/` för datorer, surfplattor och test.
-- **TrainMeet TKL Terminal:** installeras tillsammans med det lokala apparatlagret på en separat Raspberry Pi och öppnas automatiskt i Chromium-kiosk.
-
-Det är alltså inte två TKL-applikationer. Serverläget och den fysiska terminalen använder samma React-, CSS- och typsnittsfiler.
-
-För att bygga och lägga samma UI i ett lokalt TrainMeet Server-repo:
-
-```bash
-npm run build:server
-```
-
-TrainMeet Server publicerar därefter vyn på `http://SERVER:8787/tkl/`. Första gången väljer webbläsaren station och sparar valet lokalt. Den inställningen påverkar inte en fysisk TKL-terminals permanenta profil.
+TrainMeet Server levererar inte längre någon TKL-sida under `/tkl/`. TKL är en egen, separat installerad applikation som ansluter till servern med anslutningskoden.
 
 ## Raspberry Pi-terminal
 
@@ -243,16 +238,6 @@ Felrapporter och förbättringsförslag lämnas under [GitHub Issues](https://gi
 
 MIT © Beahead AB. Se [LICENSE](LICENSE).
 
-## Virtuell TKL på TrainMeet Server
-
-Öppna **TKL** i serverns arbetsytesväljare (`/tkl/`). Ingen operatörsinloggning,
-serveradress, anslutningskod eller station väljs av besökaren. Klienten visar
-en unik enhetskod och väntar. Administratören tilldelar station under serverns
-inställningar. Enhetens begränsade nyckel används, aldrig webbläsarens adminkaka.
-
-Omladdning återanvänder identiteten. Tidigare lokala stationsval ignoreras.
-Serverns omtilldelning byter station och tömmer föregående vy; borttagning
-spärrar åtkomsten utan att klienten registrerar sig på nytt. Utan serverkontakt
-spärras trafikarbetet. En separat installerad Pi-terminal är oförändrad.
+## Demoläge
 
 Det uttryckliga demoläget `/tkl/?mode=demo` är separat och påverkar aldrig träffen.

@@ -377,6 +377,28 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/terminal/wifi":
             self.send_json(HTTPStatus.OK, {"networks": self.application.wifi_networks()})
             return
+        self.serve_static(path)
+
+    def do_POST(self) -> None:
+        path = urlparse(self.path).path
+        if path == "/terminal/update":
+            try:
+                self.application.start_update()
+                self.send_json(HTTPStatus.ACCEPTED, {"status": "started", "message": "Uppdateringen har startat"})
+            except (OSError, subprocess.SubprocessError) as error:
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"message": f"Uppdateringen kunde inte startas: {error}"})
+            return
+        if path == "/terminal/wifi":
+            try:
+                payload = self.read_json()
+                self.application.connect_wifi(str(payload.get("ssid") or ""), str(payload.get("password") or ""))
+                self.send_json(HTTPStatus.OK, {"connected": True, "message": "Wi-Fi är anslutet"})
+            except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+                self.send_json(HTTPStatus.BAD_GATEWAY, {"message": str(error)})
+            return
+        # The screen sends these as POST. They sat under do_GET, so pairing a
+        # Pi with the Server's code answered "Sidan finns inte" (404), and so
+        # did every shift, movement and line action.
         if path == "/terminal/pair":
             try:
                 payload = self.read_json()
@@ -396,25 +418,6 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(HTTPStatus.OK, self.application.server_json(f"/v1{remote_path}", method="POST", payload=payload))
             except (HTTPError, URLError, TimeoutError, OSError, ValueError, PermissionError) as error:
                 self.send_json(HTTPStatus.BAD_GATEWAY, {"message": error_message(error)})
-            return
-        self.serve_static(path)
-
-    def do_POST(self) -> None:
-        path = urlparse(self.path).path
-        if path == "/terminal/update":
-            try:
-                self.application.start_update()
-                self.send_json(HTTPStatus.ACCEPTED, {"status": "started", "message": "Uppdateringen har startat"})
-            except (OSError, subprocess.SubprocessError) as error:
-                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"message": f"Uppdateringen kunde inte startas: {error}"})
-            return
-        if path == "/terminal/wifi":
-            try:
-                payload = self.read_json()
-                self.application.connect_wifi(str(payload.get("ssid") or ""), str(payload.get("password") or ""))
-                self.send_json(HTTPStatus.OK, {"connected": True, "message": "Wi-Fi är anslutet"})
-            except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
-                self.send_json(HTTPStatus.BAD_GATEWAY, {"message": str(error)})
             return
         if path != "/terminal/connect":
             self.send_json(HTTPStatus.NOT_FOUND, {"message": "Sidan finns inte"})
