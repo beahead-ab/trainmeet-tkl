@@ -49,6 +49,7 @@ import {
   type TklContext,
   type TklShift,
 } from "./api";
+import { demoStations } from "./demo";
 import { CodeBoxes } from "./components/CodeBoxes";
 import { StationDiagram } from "./components/StationDiagram";
 import { TrainCard } from "./components/TrainCard";
@@ -458,7 +459,7 @@ function ShiftStartView({
       if (!isDemoTerminal()) window.localStorage.setItem("trainmeet-tkl.operator-name", operatorName.trim());
       await onStart(operatorName.trim(), Boolean(active));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Trafikpasset kunde inte startas.");
+      setError(t(reason instanceof Error ? reason.message : "Trafikpasset kunde inte startas."));
     } finally {
       setBusy(false);
     }
@@ -675,15 +676,15 @@ function OverlayPanel({
     void checkTerminalUpdate().then((status) => {
       setUpdateAvailable(Boolean(status.supported && status.update_available));
       setUpdateStatus(status.check_error || (status.update_available
-        ? `Ny version ${status.latest_version} finns. Installerad: ${status.installed_version}.`
-        : `Installerad version ${status.installed_version} är aktuell.`));
-    }).catch(() => setUpdateStatus("Uppdatering hanteras av TrainMeet Server i det här körläget."));
+        ? t("Ny version {latest} finns. Installerad: {installed}.", { latest: status.latest_version ?? "", installed: status.installed_version ?? "" })
+        : t("Installerad version {installed} är aktuell.", { installed: status.installed_version ?? "" })));
+    }).catch(() => setUpdateStatus(t("Uppdatering hanteras av TrainMeet Server i det här körläget.")));
   }, [overlay]);
 
   const installUpdate = async () => {
-    if (!window.confirm("Installera senaste TrainMeet TKL och starta om terminalvyn?")) return;
+    if (!window.confirm(t("Installera senaste TrainMeet TKL och starta om terminalvyn?"))) return;
     setUpdating(true);
-    setUpdateStatus("Uppdaterar från GitHub …");
+    setUpdateStatus(t("Uppdaterar från GitHub …"));
     try {
       await startTerminalUpdate();
       for (let attempt = 0; attempt < 180; attempt += 1) {
@@ -704,11 +705,11 @@ function OverlayPanel({
           // The local terminal service is briefly unavailable while files are replaced.
         }
       }
-      setUpdateStatus("Uppdateringen tar längre tid än väntat. Terminalen försöker ansluta igen automatiskt.");
+      setUpdateStatus(t("Uppdateringen tar längre tid än väntat. Terminalen försöker ansluta igen automatiskt."));
       setUpdating(false);
     } catch {
       setUpdating(false);
-      setUpdateStatus("Uppdateringen kunde inte startas.");
+      setUpdateStatus(t("Uppdateringen kunde inte startas."));
     }
   };
   const panel = snapshot.connections.filter((connection) => (
@@ -740,20 +741,20 @@ function OverlayPanel({
                 {(["light", "dark", "grey", "grey-dark"] as Theme[]).map((candidate) => (
                   <button type="button" key={candidate} className={theme === candidate ? "is-active" : ""} onClick={() => onThemeChange(candidate)}>
                     {theme === candidate && <Check />}
-                    {candidate === "light" ? "Ljust" : candidate === "dark" ? "Mörkt" : candidate === "grey" ? "Grått" : "Grått mörkt"}
+                    {t(candidate === "light" ? "Ljust" : candidate === "dark" ? "Mörkt" : candidate === "grey" ? "Grått" : "Grått mörkt")}
                   </button>
                 ))}
               </div>
             </fieldset>
             <div className="info-card">
               <strong>{source === "demo" ? t("Fristående demo") : source === "server" ? "TrainMeet Server" : t("Offline")}</strong>
-              <p>{source === "demo" ? t("Fristående demo med två övningsstationer. Inget skickas till trafikspelet.") : source === "server" ? "Vyn uppdateras från serverns gemensamma driftstatus." : "Servern kan inte nås. Senast kända läge visas och trafikåtgärderna är spärrade."}</p>
+              <p>{source === "demo" ? t("Fristående demo med två övningsstationer. Inget skickas till trafikspelet.") : source === "server" ? t("Vyn uppdateras från serverns gemensamma driftstatus.") : t("Servern kan inte nås. Senast kända läge visas och trafikåtgärderna är spärrade.")}</p>
             </div>
             {!isManagedBrowser() && <><button type="button" className="reconfigure-button" onClick={onReconfigure}>{t("Kör första installationen igen")}</button>
             <div className="terminal-update-card">
               <span className="micro-heading">{t("Programvara")}</span>
-              <p>{updateStatus || "Kontrollerar version …"}</p>
-              {updateAvailable && <button type="button" onClick={() => { void installUpdate(); }} disabled={updating}>{updating ? "Installerar …" : "Installera uppdatering"}</button>}
+              <p>{updateStatus || t("Kontrollerar version …")}</p>
+              {updateAvailable && <button type="button" onClick={() => { void installUpdate(); }} disabled={updating}>{updating ? t("Installerar …") : t("Installera uppdatering")}</button>}
             </div></>}
           </div>
         )}
@@ -771,7 +772,7 @@ function OverlayPanel({
                 return (
                   <div key={slot} className="tambox-slot">
                     <strong>{slot}</strong>
-                    <span>{neighbor?.name ?? "Ej tilldelad"}</span>
+                    <span>{neighbor?.name ?? t("Ej tilldelad")}</span>
                   </div>
                 );
               })}
@@ -790,8 +791,8 @@ function OverlayPanel({
             <div className="active-operator-card"><UserRound /><span><strong>{shift.operator_name}</strong><small>{t("Trafikpass startat")} {new Date(shift.started_at).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })}</small></span></div>
             <label className="handover-note"><span>{t("Överlämningsanteckning")}</span><textarea value={handoverNote} onChange={(event) => setHandoverNote(event.target.value)} placeholder={t("Valfri information till nästa operatör")} rows={3} /></label>
             {shiftError && <p className="setup-message is-error">{shiftError}</p>}
-            <button type="button" disabled={finishingShift} onClick={() => { setFinishingShift(true); setShiftError(""); void onFinishShift("handover", handoverNote).catch((error) => { setShiftError(error instanceof Error ? error.message : "Överlämningen misslyckades."); setFinishingShift(false); }); }}>{t("Lämna över stationen")}</button>
-            <button type="button" className="danger-menu-action" disabled={finishingShift} onClick={() => { setFinishingShift(true); setShiftError(""); void onFinishShift("closed", handoverNote).catch((error) => { setShiftError(error instanceof Error ? error.message : "Trafikpasset kunde inte avslutas."); setFinishingShift(false); }); }}>{t("Avsluta trafikpasset")}</button>
+            <button type="button" disabled={finishingShift} onClick={() => { setFinishingShift(true); setShiftError(""); void onFinishShift("handover", handoverNote).catch((error) => { setShiftError(t(error instanceof Error ? error.message : "Överlämningen misslyckades.")); setFinishingShift(false); }); }}>{t("Lämna över stationen")}</button>
+            <button type="button" className="danger-menu-action" disabled={finishingShift} onClick={() => { setFinishingShift(true); setShiftError(""); void onFinishShift("closed", handoverNote).catch((error) => { setShiftError(t(error instanceof Error ? error.message : "Trafikpasset kunde inte avslutas.")); setFinishingShift(false); }); }}>{t("Avsluta trafikpasset")}</button>
             <div className="info-card">
               <strong>{snapshot.meet.name}</strong>
               <p>{snapshot.active_day} {t("· revision")} {snapshot.revision ?? 0}</p>
@@ -816,7 +817,7 @@ function ManagedTerminal() {
         setError("");
         setConfig(current => JSON.stringify(current) === JSON.stringify(next) ? current : next);
       } catch (failure) {
-        if (active) setError(failure instanceof Error ? failure.message : "Servern kan inte nås.");
+        if (active) setError(t(failure instanceof Error ? failure.message : "Servern kan inte nås."));
       }
       if (active) timer = setTimeout(refresh, 2000);
     };
@@ -845,7 +846,7 @@ export default function App() {
         const station_id = event.target.value;
         if (!station_id) return;
         void loadTerminalConfig().then(config => saveTerminalConfig({...config, station_id})).then(() => window.location.reload());
-      }}><option value="">{t("Byt demostation")}</option><option value="demo-a">Alpby</option><option value="demo-b">Björkstad</option></select>
+      }}><option value="">{t("Byt demostation")}</option>{demoStations.map((demo) => <option value={demo.id} key={demo.id}>{demo.name}</option>)}</select>
       <div><a href="/#workspaces">{t("Byt arbetsyta")}</a><button type="button" onClick={() => { void resetTerminalConfig().then(() => window.location.reload()); }}>{t("Börja om demo")}</button></div>
     </aside>}
     <TerminalApp />
@@ -1069,15 +1070,15 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
           event_type: eventType,
       });
       if (next.departure === "departed" && previous.departure !== "departed") {
-        setReceipt(`Tåg ${train.train_number} har avgått mot ${train.departure_to || "nästa station"}.`);
+        setReceipt(t("Tåg {number} har avgått mot {station}.", { number: train.train_number, station: train.departure_to || t("nästa station") }));
         window.setTimeout(() => setReceipt(null), 6000);
       } else if (next.arrival === "arrived" && previous.arrival !== "arrived" && !train.departure_time) {
-        setReceipt(`Tåg ${train.train_number} har ankommit till ${station.name}.`);
+        setReceipt(t("Tåg {number} har ankommit till {station}.", { number: train.train_number, station: station.name }));
         window.setTimeout(() => setReceipt(null), 6000);
       }
     } catch (error) {
       setMovementState((current) => ({ ...current, [key]: previous }));
-      setReceipt(error instanceof Error ? error.message : "Tågrörelsen kunde inte sparas.");
+      setReceipt(t(error instanceof Error ? error.message : "Tågrörelsen kunde inte sparas."));
       throw error;
     }
   };
@@ -1103,11 +1104,11 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
           await updateTklMovement({ meet_generation: tklContext.meet_generation, station_id: station.id, movement_id: movement.id, arrival: next.arrival, departure: next.departure, actual_track: next.actualTrack || movement.track, event_type: "arrival_arrived" });
           setMovementState((current) => ({ ...current, [key]: next }));
         }
-        setReceipt(`Tåg ${lineState.train_number} har ankommit till ${station.name}. Sträckan är fri.`);
+        setReceipt(t("Tåg {number} har ankommit till {station}. Sträckan är fri.", { number: lineState.train_number, station: station.name }));
       } else if (action === "accept") {
-        setReceipt(`Klarering beviljad för tåg ${lineState.train_number || ""}.`);
+        setReceipt(t("Klarering beviljad för tåg {number}.", { number: lineState.train_number || "" }));
       } else if (action === "reject") {
-        setReceipt(`Klareringen för tåg ${lineState.train_number || ""} nekades.`);
+        setReceipt(t("Klareringen för tåg {number} nekades.", { number: lineState.train_number || "" }));
       }
       window.setTimeout(() => setReceipt(null), 6000);
     } finally {
@@ -1190,7 +1191,7 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
             <div className="empty-state">
               <TrainFront />
               <strong>{t("Inga tågrörelser")}</strong>
-              <span>{freightMode ? "Det finns inga godståg på stationen." : "Stationen saknar tågrörelser för aktiv dag."}</span>
+              <span>{t(freightMode ? "Det finns inga godståg på stationen." : "Stationen saknar tågrörelser för aktiv dag.")}</span>
             </div>
           )}
 

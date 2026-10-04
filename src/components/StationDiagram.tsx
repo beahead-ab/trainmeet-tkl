@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import type {
   Connection,
   ConnectionState,
@@ -70,7 +71,7 @@ function TrainOnLine({
       type="button"
       className={`line-train ${outward ? "is-outward" : "is-inward"} ${selected ? "is-selected" : ""}`}
       onClick={onClick}
-      aria-label={`Tåg ${number} på linjen`}
+      aria-label={t("Tåg {number} på linjen", { number })}
     >
       {!outward && <span aria-hidden="true">▶</span>}
       {outward && <span aria-hidden="true">◀</span>}
@@ -111,7 +112,7 @@ function TrackRail({
           type="button"
           className={`station-track-train is-${occupant.status} ${occupant.freight ? "is-freight" : ""}`}
           onClick={() => onTrainSelect(occupant.trainNumber)}
-          aria-label={`Tåg ${occupant.trainNumber} på spår ${occupant.track}`}
+          aria-label={t("Tåg {number} på spår {track}", { number: occupant.trainNumber, track: occupant.track })}
         >
           {occupant.arrow && <span aria-hidden="true">{occupant.arrow}</span>}
           {occupant.neighborCode && <small>{occupant.neighborCode.slice(0, 3)}</small>}
@@ -268,7 +269,7 @@ export function StationDiagram({
   );
 
   return (
-    <section className="station-diagram" aria-label={`Banöversikt för ${station.name}`}>
+    <section className="station-diagram" aria-label={t("Banöversikt för {station}", { station: station.name })}>
       {renderSide("left")}
       <div className="station-center">
         <div className="station-center-title">
