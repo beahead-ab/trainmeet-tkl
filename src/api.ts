@@ -194,11 +194,15 @@ export async function loadAuthStatus(): Promise<AuthStatus> {
   return terminalOrServer<AuthStatus>("/terminal/auth", "/v1/auth/status");
 }
 
-export async function loginAdmin(username: string, password: string): Promise<AuthStatus> {
+// TrainMeet Server 3 binds an account to its email address; there is no
+// username. The address is also sent as "username" so that a server that has
+// not been updated yet reads the same field.
+export async function loginAdmin(email: string, password: string): Promise<AuthStatus> {
+  const address = email.trim();
   return readJSON<AuthStatus>("/v1/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ email: address, username: address, password }),
   });
 }
 

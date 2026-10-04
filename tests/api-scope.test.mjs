@@ -67,3 +67,14 @@ test('managed browser enrolls once, waits for admin and never uses admin cookies
  await assert.rejects(api.loadTerminalConfig(),/Revoked/);
  assert.equal(requests.filter(r=>r.path==='/v1/browser-clients').length,1,'Revoked identity must not self-register again');
 });
+
+test('the server account is signed in with its email address, also by servers that still read username',async()=>{
+  const requests=[];globalThis.window={setTimeout,clearTimeout,dispatchEvent(){}};
+  globalThis.fetch=async(path,options)=>{requests.push({path,options});return {ok:true,json:async()=>({authenticated:true})};};
+  await api.loginAdmin(' Casper@Example.se ','ett-langt-losenord');
+  assert.equal(requests[0].path,'/v1/auth/login');
+  assert.deepEqual(JSON.parse(requests[0].options.body),{email:'Casper@Example.se',username:'Casper@Example.se',password:'ett-langt-losenord'});
+  const app=await readFile(new URL('../src/App.tsx',import.meta.url),'utf8');
+  assert.doesNotMatch(app,/t\("Användarnamn"\)/,'the server account has no username any more');
+  assert.equal((app.match(/placeholder=\{t\("E-postadress"\)\} type="email"/g)||[]).length,2,'both sign-in forms ask for the address');
+});

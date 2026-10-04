@@ -176,7 +176,7 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
       try {
         const status = await loadAuthStatus();
         setAuth(status);
-        setUsername(status.username || "");
+        setUsername("");
       } catch (error) {
         if (hosted) throw error;
         setAuth({ authenticated: false, access_mode: "external", username: "", password_configured: true, must_change_password: false });
@@ -306,7 +306,7 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
                     <CodeBoxes value={pairingCode} onChange={setPairingCode} label={t("Anslutningskod")} />
                   ) : (
                     <div className="login-fields">
-                      <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder={t("Användarnamn")} autoComplete="username" />
+                      <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder={t("E-postadress")} type="email" autoComplete="username" />
                       <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={t("Lösenord")} autoComplete="current-password" />
                     </div>
                   )}
@@ -386,7 +386,7 @@ function AuthenticationView({
   onAuthenticated: (status: AuthStatus) => void;
   onReconfigure: () => void;
 }) {
-  const [username, setUsername] = useState(status.username || "");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [pairingCode, setPairingCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -418,7 +418,7 @@ function AuthenticationView({
             <CodeBoxes value={pairingCode} onChange={setPairingCode} label={t("Anslutningskod")} />
           ) : (
             <>
-              <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder={t("Användarnamn")} autoComplete="username" />
+              <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder={t("E-postadress")} type="email" autoComplete="username" />
               <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={t("Lösenord")} autoComplete="current-password" />
             </>
           )}
