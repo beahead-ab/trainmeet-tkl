@@ -6,6 +6,8 @@ import type { RuntimeSnapshot, TrainRow } from "./types";
 const key = "trainmeet-tkl.demo.v1";
 const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 const stations = [{id: "demo-a", code: "ALP", name: "Alpby"}, {id: "demo-b", code: "BJO", name: "Björkstad"}];
+// Place names of the practice line: data, the same in every language.
+export const demoStations: ReadonlyArray<{id: string; name: string}> = stations;
 const trains: TrainRow[] = [
   {id: "demo-101-a", train_number: "101", station_id: "demo-a", station: "Alpby", track: "1", days: "Demo", arrival_time: null, departure_time: "06:05", arrival_from: null, departure_to: "Björkstad", sort_time: "06:05", train_type: "person", no_stop: false, note: null},
   {id: "demo-101-b", train_number: "101", station_id: "demo-b", station: "Björkstad", track: "1", days: "Demo", arrival_time: "06:15", departure_time: null, arrival_from: "Alpby", departure_to: null, sort_time: "06:15", train_type: "person", no_stop: false, note: null},

@@ -96,12 +96,12 @@ function nextAction(train: TrainRow, movement: LocalMovementState): {
 
 function statusLabel(train: TrainRow, movement: LocalMovementState, from: string | null, to: string | null): string {
   if (movement.departure === "departed") return t("Avgått");
-  if (movement.departure === "ready") return to ? `Klart → ${to}` : t("Klart för avgång");
-  if (movement.departure === "positioned") return to ? `Uppställt → ${to}` : t("Uppställt");
-  if (movement.arrival === "approaching") return "På väg in";
-  if (movement.arrival === "arrived") return from ? `Ankommet ← ${from}` : "Ankommet";
-  if (train.arrival_time && from) return `Ank från ${from}`;
-  if (train.departure_time && to) return `Avg till ${to}`;
+  if (movement.departure === "ready") return to ? t("Klart → {station}", { station: to }) : t("Klart för avgång");
+  if (movement.departure === "positioned") return to ? t("Uppställt → {station}", { station: to }) : t("Uppställt");
+  if (movement.arrival === "approaching") return t("På väg in");
+  if (movement.arrival === "arrived") return from ? t("Ankommet ← {station}", { station: from }) : t("Ankommet");
+  if (train.arrival_time && from) return t("Ank från {station}", { station: from });
+  if (train.departure_time && to) return t("Avg till {station}", { station: to });
   return "";
 }
 
@@ -168,7 +168,7 @@ export function TrainCard({
       await onMovementChange(next);
       setExpanded(false);
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Åtgärden kunde inte sparas.");
+      setActionError(t(error instanceof Error ? error.message : "Åtgärden kunde inte sparas."));
     } finally {
       setBusy(false);
     }
@@ -183,7 +183,7 @@ export function TrainCard({
       await onMovementChange({ ...movement, lineRequest: status });
       setExpanded(false);
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Klareringen kunde inte begäras.");
+      setActionError(t(error instanceof Error ? error.message : "Klareringen kunde inte begäras."));
     } finally {
       setBusy(false);
     }
@@ -208,7 +208,7 @@ export function TrainCard({
         <strong className="train-number">{train.train_number}</strong>
         <span className="train-direction-track">
           <DirectionIcon train={train} />
-          <span>{trackLabel ?? "Okänt spår"}</span>
+          <span>{trackLabel ?? t("Okänt spår")}</span>
         </span>
         {train.note && !expanded && <FileText className="note-icon" aria-label={t("Tåget har en anteckning")} />}
         <span className="train-summary-text">{summary}</span>
@@ -274,10 +274,10 @@ export function TrainCard({
               disabled={busy || actionsDisabled || movement.lineRequest === "pending" || movement.lineRequest === "confirmed"}
             >
               <SendHorizontal size={16} />
-              {movement.lineRequest === "pending" && "Väntar på klarering"}
-              {movement.lineRequest === "confirmed" && "Klarering beviljad"}
-              {movement.lineRequest === "denied" && "Nekad – begär igen"}
-              {movement.lineRequest === "none" && "Begär klarering"}
+              {movement.lineRequest === "pending" && t("Väntar på klarering")}
+              {movement.lineRequest === "confirmed" && t("Klarering beviljad")}
+              {movement.lineRequest === "denied" && t("Nekad – begär igen")}
+              {movement.lineRequest === "none" && t("Begär klarering")}
             </button>
           )}
 
