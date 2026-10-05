@@ -98,3 +98,11 @@ python3 scripts/version.py bump minor
 `sync` går att köra hur många gånger som helst; `bump` gör det inte, eftersom
 den också räknar upp iPhone-byggnumret — TestFlight vägrar ett byggnummer den
 redan sett.
+
+## Vad är nytt
+
+Varje version får sina rubriker i `RELEASES.json`, nyaste först: PR-titlarna
+utan markörer och PR-nummer. Versionsroboten skriver dem när den höjer
+versionen (`version.py notes --range`), och `sync` kopierar filen till
+`public/releases.json`, som Inställningar → Vad är nytt visar. Se
+TrainMeet Servers `docs/VERSIONING.md`; skriptet är detsamma.
