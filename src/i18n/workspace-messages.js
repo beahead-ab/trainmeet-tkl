@@ -1,5 +1,9 @@
 (() => {
   const rows = [
+    {sv:'Vad är nytt',en:"What's new",da:'Nyheder',nb:'Nyheter',de:'Neuigkeiten'},
+    {sv:'Installerad',en:'Installed',da:'Installeret',nb:'Installert',de:'Installiert'},
+    {sv:'Visa färre',en:'Show fewer',da:'Vis færre',nb:'Vis færre',de:'Weniger anzeigen'},
+    {sv:'Visa alla versioner ({count})',en:'Show all versions ({count})',da:'Vis alle versioner ({count})',nb:'Vis alle versjoner ({count})',de:'Alle Versionen anzeigen ({count})'},
     {"sv":"Stationen tilldelas av administratören på servern.","en":"The server administrator assigns the station.","da":"Stationen tildeles af administratoren på serveren.","nb":"Stasjonen tildeles av administratoren på serveren.","de":"Der Serveradministrator weist den Bahnhof zu."},
     {"sv":"Väntar på administratören","en":"Waiting for the administrator","da":"Venter på administratoren","nb":"Venter på administratoren","de":"Warten auf den Administrator"},
     {"sv":"Visa enhetskoden för administratören. Stationen tilldelas på TrainMeet Server.","en":"Show the device code to the administrator. The station is assigned on TrainMeet Server.","da":"Vis enhedskoden til administratoren. Stationen tildeles på TrainMeet Server.","nb":"Vis enhetskoden til administratoren. Stasjonen tildeles på TrainMeet Server.","de":"Zeige dem Administrator den Gerätecode. Der Bahnhof wird auf TrainMeet Server zugewiesen."},
