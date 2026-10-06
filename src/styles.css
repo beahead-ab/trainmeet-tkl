@@ -2359,3 +2359,26 @@ select:focus-visible {
 .demo-notice > div { display: flex; align-items: center; gap: 1rem; }
 .demo-notice button { padding: .5rem .8rem; border: 1px solid currentColor; border-radius: .5rem; background: transparent; color: inherit; cursor: pointer; }
 .demo-notice a { color: inherit; }
+
+/* Inställningar → Vad är nytt: a version per block, its headings below. */
+.release-notes {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: hsl(var(--secondary) / 0.6);
+}
+.release-note { margin-top: 0.6rem; }
+.release-note__head { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.75rem; }
+.release-note__head span { padding: 0 0.4rem; border-radius: 9999px; background: hsl(var(--foreground) / 0.12); }
+.release-note__head small { color: hsl(var(--muted-foreground)); }
+.release-note ul { margin: 0.25rem 0 0; padding-left: 1rem; color: hsl(var(--muted-foreground)); font-size: 0.75rem; line-height: 1.5; }
+.release-notes button {
+  margin-top: 0.6rem;
+  color: hsl(var(--foreground));
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 0.75rem;
+  text-decoration: underline;
+  cursor: pointer;
+}

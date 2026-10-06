@@ -1,0 +1,103 @@
+[
+  {
+    "version": "0.6.0",
+    "date": "2026-10-05",
+    "notes": [
+      "Vad är nytt i Inställningar"
+    ]
+  },
+  {
+    "version": "0.5.0",
+    "date": "2026-10-04",
+    "notes": [
+      "Alla texter på engelska, svenska, danska, tyska och norska"
+    ]
+  },
+  {
+    "version": "0.4.1",
+    "date": "2026-10-04",
+    "notes": [
+      "Klockan, tiderna och spåren i Inter med tabellsiffror"
+    ]
+  },
+  {
+    "version": "0.4.0",
+    "date": "2026-10-04",
+    "notes": [
+      "Inloggning mot servern med e-postadress"
+    ]
+  },
+  {
+    "version": "0.3.5",
+    "date": "2026-10-03",
+    "notes": [
+      "Ny logotyp och översättningar från Server 2.6.0"
+    ]
+  },
+  {
+    "version": "0.3.4",
+    "date": "2026-10-03",
+    "notes": [
+      "i18n: samma översättningsmotor som Server 2.3.1"
+    ]
+  },
+  {
+    "version": "0.3.3",
+    "date": "2026-10-01",
+    "notes": [
+      "Terminalen ber om koden igen när den tagits bort i Servern"
+    ]
+  },
+  {
+    "version": "0.3.2",
+    "date": "2026-10-01",
+    "notes": [
+      "Parkopplingen med serverns kod fungerar igen på Pi:n"
+    ]
+  },
+  {
+    "version": "0.3.1",
+    "date": "2026-10-01",
+    "notes": [
+      "Anslutningskoden matas in i rutor, inte i ett tomt fält"
+    ]
+  },
+  {
+    "version": "0.3.0",
+    "date": "2026-09-19",
+    "notes": [
+      "Public managed TKL and isolated demo"
+    ]
+  },
+  {
+    "version": "0.2.1",
+    "date": "2026-09-19",
+    "notes": [
+      "TKL-arbetsyta och säkra kommandon för vald träff"
+    ]
+  },
+  {
+    "version": "0.2.0",
+    "date": "2026-09-18",
+    "notes": [
+      "Five-language TKL terminal UI"
+    ]
+  },
+  {
+    "version": "0.1.2",
+    "date": "2026-09-18",
+    "notes": [
+      "Resolve canonical track IDs in TKL station display"
+    ]
+  },
+  {
+    "version": "0.1.1",
+    "date": "2026-09-18",
+    "notes": [
+      "Set the version automatically on every merge to main",
+      "Tag a version somebody set by hand, not only one the robot bumped",
+      "docs: paketera publik dokumentation",
+      "Keep TKL train state stable across server refreshes"
+    ]
+  }
+]

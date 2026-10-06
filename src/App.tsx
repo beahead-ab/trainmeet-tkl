@@ -750,6 +750,7 @@ function OverlayPanel({
               <strong>{source === "demo" ? t("Fristående demo") : source === "server" ? "TrainMeet Server" : t("Offline")}</strong>
               <p>{source === "demo" ? t("Fristående demo med två övningsstationer. Inget skickas till trafikspelet.") : source === "server" ? t("Vyn uppdateras från serverns gemensamma driftstatus.") : t("Servern kan inte nås. Senast kända läge visas och trafikåtgärderna är spärrade.")}</p>
             </div>
+            <ReleaseNotes />
             {!isManagedBrowser() && <><button type="button" className="reconfigure-button" onClick={onReconfigure}>{t("Kör första installationen igen")}</button>
             <div className="terminal-update-card">
               <span className="micro-heading">{t("Programvara")}</span>
@@ -1257,6 +1258,35 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
           }}
         />
       )}
+    </div>
+  );
+}
+
+type Release = { version: string; date: string; notes: string[] };
+
+/** Vad är nytt: each version's headings, newest first (public/releases.json,
+ *  written by scripts/version.py when the version is minted). */
+function ReleaseNotes() {
+  const [releases, setReleases] = useState<Release[]>([]);
+  const [all, setAll] = useState(false);
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}releases.json`, { cache: "no-cache" })
+      .then((response) => (response.ok ? response.json() : []))
+      .then((list) => setReleases(Array.isArray(list) ? list.filter((item) => item && typeof item.version === "string" && Array.isArray(item.notes)) : []))
+      .catch(() => setReleases([]));
+  }, []);
+  if (!releases.length) return null;
+  const shown = all ? releases : releases.slice(0, 5);
+  return (
+    <div className="release-notes">
+      <span className="micro-heading">{t("Vad är nytt")}</span>
+      {shown.map((release, index) => (
+        <div key={release.version} className="release-note">
+          <div className="release-note__head"><b>{release.version}</b>{index === 0 && <span>{t("Installerad")}</span>}<small>{release.date}</small></div>
+          <ul>{release.notes.map((note) => <li key={note}>{note}</li>)}</ul>
+        </div>
+      ))}
+      {releases.length > 5 && <button type="button" onClick={() => setAll(!all)}>{all ? t("Visa färre") : t("Visa alla versioner ({count})", { count: releases.length })}</button>}
     </div>
   );
 }
