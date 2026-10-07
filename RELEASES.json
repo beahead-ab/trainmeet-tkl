@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.6.5",
+    "date": "2026-10-07",
+    "notes": [
+      "Textkatalogen synkad med Server 3.10.1"
+    ]
+  },
+  {
     "version": "0.6.4",
     "date": "2026-10-07",
     "notes": [
