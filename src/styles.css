@@ -2382,3 +2382,42 @@ select:focus-visible {
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* Förseningar och för tidiga tåg, i den mängd terminalen valt (fem nivåer,
+   som på servern): röd bricka med vita siffror, grön för tidigt, liten röd
+   text på nivå Diskret, och en rad som just ändrats lyser kort och får "Nyss". */
+.tm-mark {
+  display: inline-flex;
+  min-width: 2.2em;
+  align-items: center;
+  justify-content: center;
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.tm-mark.is-late.is-pill { color: #fff; background: hsl(0 72% 42%); }
+.tm-mark.is-early.is-pill { color: #fff; background: hsl(145 63% 28%); }
+.tm-mark.is-text { min-width: 0; padding: 0; color: hsl(0 72% 45%); background: none; }
+.train-card time .tm-was { display: block; color: hsl(var(--muted-foreground)); font-size: 0.7rem; line-height: 1.1; text-decoration-thickness: 1.5px; }
+.train-card time .tm-new { display: block; color: hsl(0 72% 45%); }
+.train-card.is-early time .tm-new { color: hsl(145 63% 32%); }
+.tm-recent {
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  color: hsl(var(--status-ready-border));
+  background: hsl(var(--status-ready-bg));
+  font-size: 0.7rem;
+  font-weight: 650;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.train-card.is-updated { animation: tm-row-flash 2s ease-out both; }
+@keyframes tm-row-flash { from { background-color: hsl(var(--status-ready-bg)); } to { background-color: transparent; } }
+@media (prefers-reduced-motion: reduce) { .train-card.is-updated { animation: none; } }
+.line-train { transition: left 900ms linear; }
+@media (prefers-reduced-motion: reduce) { .line-train { transition: none; } }
+.field-hint { margin: -0.25rem 0 0; color: hsl(var(--muted-foreground)); font-size: 0.8rem; }

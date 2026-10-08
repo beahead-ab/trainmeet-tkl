@@ -2,6 +2,7 @@ import { t } from "../i18n";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, FileText, Package, SendHorizontal } from "lucide-react";
 import { movementTrackLabel, routeNeighbors } from "../runtime";
+import type { DeviationView } from "../trainLive";
 import type {
   DepartureStatus,
   LocalMovementState,
@@ -9,7 +10,17 @@ import type {
   TrainRow,
 } from "../types";
 
+/** Försening eller för tidigt för kortet, efter nivån användaren valt. */
+export interface CardDeviation {
+  view: DeviationView;
+  expected: string | null;
+  label: string;
+  /** Millisekunder sedan raden ändrades, eller null. */
+  age: number | null;
+}
+
 interface TrainCardProps {
+  deviation?: CardDeviation;
   snapshot: RuntimeSnapshot;
   train: TrainRow;
   movement: LocalMovementState;
@@ -122,6 +133,7 @@ function renderNote(note: string) {
 }
 
 export function TrainCard({
+  deviation,
   snapshot,
   train,
   movement,
@@ -190,10 +202,13 @@ export function TrainCard({
   };
 
   const primaryTime = train.arrival_time || train.departure_time || train.sort_time;
+  const mark = deviation?.view.mark;
+  const updated = deviation?.view.flash && deviation.age !== null && deviation.age < 2000;
+  const recent = deviation?.view.flash && deviation.age !== null && deviation.age < 30000;
   return (
     <article
       id={`train-${train.id}`}
-      className={`train-card ${statusClass(movement)} ${expanded ? "is-expanded" : ""} ${selected ? "is-selected" : ""}`}
+      className={`train-card ${statusClass(movement)} ${expanded ? "is-expanded" : ""} ${selected ? "is-selected" : ""} ${mark ? `is-${mark.tone}` : ""} ${updated ? "is-updated" : ""}`}
     >
       <button
         type="button"
@@ -204,8 +219,14 @@ export function TrainCard({
         }}
         aria-expanded={expanded}
       >
-        <time className={train.arrival_time ? "arrival-time" : "departure-time"}>{primaryTime}</time>
+        <time className={train.arrival_time ? "arrival-time" : "departure-time"}>
+          {deviation?.view.strike && deviation.expected
+            ? <><s className="tm-was">{primaryTime}</s><span className="tm-new">{deviation.expected}</span></>
+            : primaryTime}
+        </time>
         <strong className="train-number">{train.train_number}</strong>
+        {mark && <span className={`tm-mark is-${mark.tone} is-${mark.style}`} title={deviation!.label} aria-label={deviation!.label}>{mark.text}</span>}
+        {recent && <span className="tm-recent">{t("Nyss")}</span>}
         <span className="train-direction-track">
           <DirectionIcon train={train} />
           <span>{trackLabel ?? t("Okänt spår")}</span>

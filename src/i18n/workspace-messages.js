@@ -18,6 +18,10 @@
     {sv:'Inloggad.',en:'Signed in.',da:'Logget ind.',nb:'Logget inn.',de:'Angemeldet.'},
     {sv:'Byt arbetsyta',en:'Change workspace',da:'Skift arbejdsområde',nb:'Bytt arbeidsområde',de:'Arbeitsbereich wechseln'},
     {sv:'Utloggningen misslyckades.',en:'Sign-out failed.',da:'Det lykkedes ikke at logge ud.',nb:'Utlogging mislyktes.',de:'Abmeldung fehlgeschlagen.'},
+    // Förseningar på tågkorten (samma ord som serverns deltagarvy).
+    {sv:'{minutes} min sen',en:'{minutes} min late',da:'{minutes} min forsinket',nb:'{minutes} min forsinket',de:'{minutes} Min. verspätet'},
+    {sv:'beräknad',en:'estimated',da:'beregnet',nb:'beregnet',de:'voraussichtlich'},
+    {sv:'Nyss',en:'Just now',da:'Lige nu',nb:'Nettopp',de:'Gerade eben'},
     // Texts found by the five-language audit (tests/i18n-coverage.test.mjs).
     {"sv": "TrainMeet TKL Terminal", "en": "TrainMeet TKL Terminal", "da": "TrainMeet TKL Terminal", "nb": "TrainMeet TKL Terminal", "de": "TrainMeet TKL Terminal"},
     {"sv": "Demo", "en": "Demo", "da": "Demo", "nb": "Demo", "de": "Demo"},

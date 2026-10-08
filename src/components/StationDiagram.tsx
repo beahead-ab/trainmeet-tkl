@@ -1,4 +1,5 @@
 import { t } from "../i18n";
+import { legProgress } from "../trainLive";
 import type {
   Connection,
   ConnectionState,
@@ -10,6 +11,8 @@ import type {
 type DiagramRow = "top" | "middle" | "bottom";
 
 interface StationDiagramProps {
+  /** Träffklockans sekunder på dygnet nu: tåg på linjen rör sig efter den. */
+  nowSeconds?: number;
   snapshot: RuntimeSnapshot;
   station: Station;
   tracks: string[];
@@ -60,15 +63,20 @@ function TrainOnLine({
   outward,
   selected,
   onClick,
+  at,
 }: {
   number: string;
   outward: boolean;
   selected: boolean;
   onClick: () => void;
+  /** Var på sträckan tåget är, 0 vänster – 1 höger; utan tidtabell mitt på. */
+  at?: number | null;
 }) {
   return (
     <button
       type="button"
+      // Satt med CSSOM (React style), inte ett style-attribut i HTML: tillåtet med serverns CSP.
+      style={at === null || at === undefined ? undefined : { left: `${Math.round(Math.min(0.9, Math.max(0.1, at)) * 1000) / 10}%` }}
       className={`line-train ${outward ? "is-outward" : "is-inward"} ${selected ? "is-selected" : ""}`}
       onClick={onClick}
       aria-label={t("Tåg {number} på linjen", { number })}
@@ -88,7 +96,9 @@ function TrackRail({
   onTrainSelect,
   occupant,
   connectionState,
+  at,
 }: {
+  at?: number | null;
   active: boolean;
   train?: string | null;
   outward: boolean;
@@ -104,6 +114,7 @@ function TrackRail({
           number={train}
           outward={outward}
           selected={selected}
+          at={at}
           onClick={() => onTrainSelect(train)}
         />
       )}
@@ -129,22 +140,32 @@ function ConnectionTracks({
   currentStationId,
   selectedTrain,
   onTrainSelect,
+  nowSeconds,
 }: {
   segment: NeighborSegment;
   snapshot: RuntimeSnapshot;
   currentStationId: string;
   selectedTrain?: string | null;
   onTrainSelect: (number: string) => void;
+  nowSeconds?: number;
 }) {
   const state = effectiveConnectionState(snapshot, segment.connection);
   const train = state.state === "occupied" ? state.train_number : null;
   const caseTrain = state.train_number;
   const outward = state.from_station_id === currentStationId;
+  // Ett avgånget tåg glider mot nästa station i takt med träffklockan, som på
+  // serverns kartor: från den verkliga avgången, annars den planerade.
+  const position = snapshot.train_positions.find((candidate) => candidate.status === "connection" && candidate.connection_id === segment.connection.id);
+  const progress = train && nowSeconds !== undefined && state.from_station_id && state.to_station_id
+    ? legProgress(snapshot, train, state.from_station_id, state.to_station_id, position?.departed_seconds, nowSeconds) : null;
+  const towardRight = (segment.side === "right") === outward;
+  const at = progress === null ? null : towardRight ? progress : 1 - progress;
   if (segment.connection.track_type === "single") {
     return (
       <TrackRail
         active={state.state === "occupied"}
         train={train}
+        at={at}
         outward={outward}
         selected={selectedTrain === train}
         connectionState={state.state}
@@ -160,6 +181,7 @@ function ConnectionTracks({
       <TrackRail
         active={Boolean(train && activeOnTop)}
         train={activeOnTop ? train : null}
+        at={at}
         outward={outward}
         selected={selectedTrain === train}
         connectionState={activeOnTop ? state.state : "free"}
@@ -168,6 +190,7 @@ function ConnectionTracks({
       <TrackRail
         active={Boolean(train && !activeOnTop)}
         train={!activeOnTop ? train : null}
+        at={at}
         outward={outward}
         selected={selectedTrain === train}
         connectionState={!activeOnTop ? state.state : "free"}
@@ -184,7 +207,9 @@ function Segment({
   selectedTrain,
   onTrainSelect,
   onStationSelect,
+  nowSeconds,
 }: {
+  nowSeconds?: number;
   segment: NeighborSegment;
   snapshot: RuntimeSnapshot;
   currentStationId: string;
@@ -212,6 +237,7 @@ function Segment({
           currentStationId={currentStationId}
           selectedTrain={selectedTrain}
           onTrainSelect={onTrainSelect}
+          nowSeconds={nowSeconds}
         />
       </div>
       {segment.side === "right" && badge}
@@ -220,6 +246,7 @@ function Segment({
 }
 
 export function StationDiagram({
+  nowSeconds,
   snapshot,
   station,
   tracks,
@@ -255,6 +282,7 @@ export function StationDiagram({
             .map((segment) => (
               <Segment
                 key={segment.connection.id}
+                nowSeconds={nowSeconds}
                 segment={segment}
                 snapshot={snapshot}
                 currentStationId={station.id}
