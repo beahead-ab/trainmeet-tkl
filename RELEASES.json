@@ -1,5 +1,40 @@
 [
   {
+    "version": "0.8.4",
+    "date": "2026-10-08",
+    "notes": [
+      "Textkatalogen synkad med Server 3.20.0"
+    ]
+  },
+  {
+    "version": "0.8.3",
+    "date": "2026-10-08",
+    "notes": [
+      "Textkatalogen synkad med Server 3.19.0"
+    ]
+  },
+  {
+    "version": "0.8.2",
+    "date": "2026-10-08",
+    "notes": [
+      "Textkatalogen synkad med Server 3.18.0"
+    ]
+  },
+  {
+    "version": "0.8.1",
+    "date": "2026-10-08",
+    "notes": [
+      "Textkatalogen synkad med Server (dygnsskiftet och Tidsmaskinen)"
+    ]
+  },
+  {
+    "version": "0.8.0",
+    "date": "2026-10-08",
+    "notes": [
+      "TKL säger till vid dygnsskiftet: alla tåg står på sin utgångspunkt"
+    ]
+  },
+  {
     "version": "0.7.0",
     "date": "2026-10-08",
     "notes": [

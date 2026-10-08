@@ -1,4 +1,5 @@
 import { t, locale } from "./i18n";
+import { DAY_CHANGE_SEEN_KEY, dayChangeNotice, type DayNotice } from "./dayChange";
 import { authenticatedMessage } from "./auth-message";
 import { accessLost } from "./access-lost";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
@@ -1259,6 +1260,26 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
   const [deviationOwn, setDeviationOwn] = useState<string>(() => { try { return window.localStorage.getItem(DEVIATION_LEVEL_KEY) || ""; } catch { return ""; } });
   const receivedAt = useRef(Date.now());
   const [tick, setTick] = useState(Date.now());
+  // Dygnsskiftet: en toast när alla tåg ställts på sin utgångspunkt.
+  const [dayNotice, setDayNotice] = useState<DayNotice | null>(null);
+  const noteDayChange = (next: RuntimeSnapshot) => {
+    let seen: string | null = null;
+    try { seen = window.sessionStorage.getItem(DAY_CHANGE_SEEN_KEY); } catch { /* privat läge */ }
+    const notice = dayChangeNotice(next, seen);
+    if (notice?.kind === "changed") {
+      try { window.sessionStorage.setItem(DAY_CHANGE_SEEN_KEY, notice.key); } catch { /* privat läge */ }
+      setDayNotice(notice);
+    } else if (notice?.kind === "waiting") {
+      setDayNotice((current) => (current?.kind === "changed" ? current : notice));
+    } else {
+      setDayNotice((current) => (current?.kind === "waiting" ? null : current));
+    }
+  };
+  useEffect(() => {
+    if (dayNotice?.kind !== "changed") return undefined;
+    const timer = window.setTimeout(() => setDayNotice(null), 12000);
+    return () => window.clearTimeout(timer);
+  }, [dayNotice]);
   const fresh = useRef(changeTracker());
   const trackedLevel = useRef<number | null>(null);
   useEffect(() => { const timer = window.setInterval(() => setTick(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
@@ -1301,6 +1322,7 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
         receivedAt.current = Date.now();
         setRuntime(result);
         setRuntimeError(false);
+        noteDayChange(result.snapshot);
         if (firstLoad.current) {
           const configuredStation = result.snapshot.stations.find((station) => station.id === terminalConfig.station_id);
           setStationId(configuredStation?.id ?? (isManagedBrowser() ? null : defaultStation(result.snapshot).id));
@@ -1603,6 +1625,14 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
     <div className="app-background">
       <main className="app-shell">
         {receipt && <div className="operation-receipt" role="status"><CircleCheckBig /><span>{receipt}</span><button type="button" onClick={() => setReceipt(null)} aria-label={t("Stäng")}><X /></button></div>}
+        {dayNotice && (
+          <div className="day-change-toast" role="status" data-kind={dayNotice.kind}>
+            <span>{dayNotice.kind === "changed"
+              ? t("Nytt trafikdygn: Dag {n} · {day}. Alla tåg står på sin utgångspunkt och statusarna är nollställda.", { n: dayNotice.dayNumber, day: dayNotice.weekday })
+              : t("Dygnsskiftet väntar på tåg som är ute på linjen.")}</span>
+            <button type="button" onClick={() => setDayNotice(null)} aria-label={t("Stäng")}><X /></button>
+          </div>
+        )}
         {!runtime.connected && (
           <div className="offline-banner" role="status">{t("Offline · visar senast kända läge · trafikåtgärder är spärrade")}</div>
         )}
