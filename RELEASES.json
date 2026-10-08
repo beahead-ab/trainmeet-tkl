@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.7.0",
+    "date": "2026-10-08",
+    "notes": [
+      "TKL visar förseningar och för tidiga tåg, och tågen rör sig på linjen"
+    ]
+  },
+  {
     "version": "0.6.5",
     "date": "2026-10-07",
     "notes": [
