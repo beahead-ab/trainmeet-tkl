@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.9.0",
+    "date": "2026-10-08",
+    "notes": [
+      "TKL-konton: e-post + lösenord, ställverket utan inloggning vid datorn"
+    ]
+  },
+  {
     "version": "0.8.5",
     "date": "2026-10-08",
     "notes": [
