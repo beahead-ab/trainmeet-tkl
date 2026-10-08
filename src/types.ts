@@ -127,7 +127,17 @@ export interface RuntimeSnapshot {
   };
   /** Per rörelse: läge och träffklockans tid för ankomst och avgång. */
   movement_live?: Record<string, { arrival?: string; departure?: string; by_timetable?: boolean; arrived_seconds?: number; departed_seconds?: number }>;
-  calendar?: { start_day: string; day_number: number; weekday: string } | null;
+  calendar?: {
+    start_day: string;
+    day_number: number;
+    weekday: string;
+    /** Dygnsskiftets tid, förval 05:00. */
+    change_time?: string;
+    /** Skiftet väntar på ett tåg som är ute på linjen. */
+    waiting?: boolean;
+    /** Det senaste dygnsskiftet, för toasten. */
+    last_change?: { kind: string; day_number: number; weekday: string; at: string } | null;
+  } | null;
   clock: ClockState;
   train_positions: TrainPosition[];
   server_time?: string;
