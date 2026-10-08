@@ -53,6 +53,7 @@ import { demoStations } from "./demo";
 import { CodeBoxes } from "./components/CodeBoxes";
 import { StationDiagram } from "./components/StationDiagram";
 import { TrainCard } from "./components/TrainCard";
+import { DEVIATION_LEVELS, DEVIATION_LEVEL_KEY, changeTracker, clockSeconds, deviationLevel, deviationView, trainLive } from "./trainLive";
 import {
   dedupeTrains,
   defaultStation,
@@ -640,6 +641,16 @@ function NowMarker() {
   return <div className="now-marker" aria-label={t("Nu")}><span /></div>;
 }
 
+// Nivåernas namn och förklaringar, samma texter som serverns (textkatalogen synkas).
+const LEVEL_NAMES: Record<number, string> = { 1: "Ingen markering", 2: "När det inträffar", 3: "Diskret", 4: "Fler", 5: "Allt" };
+const LEVEL_HINTS: Record<number, string> = {
+  1: "Bara tidtabellens tider, inget rött och ingen markering",
+  2: "Raden lyser kort och får Nyss när något händer",
+  3: "Dessutom förseningen i liten röd text från 5 min",
+  4: "Röd bricka från 3 min, den nya tiden och för tidig avgång för persontåg",
+  5: "Allt från 1 min, även för tidig ankomst och vid tågen på kartan",
+};
+
 function OverlayPanel({
   overlay,
   onClose,
@@ -652,7 +663,11 @@ function OverlayPanel({
   onReconfigure,
   shift,
   onFinishShift,
+  deviationOwn,
+  onDeviationChange,
 }: {
+  deviationOwn: string;
+  onDeviationChange: (level: string) => void;
   overlay: Exclude<Overlay, null>;
   onClose: () => void;
   snapshot: RuntimeSnapshot;
@@ -746,6 +761,15 @@ function OverlayPanel({
                 ))}
               </div>
             </fieldset>
+            <label>
+              <span>{t("Förseningar och för tidiga tåg")}</span>
+              {/* Den här terminalens eget val; tomt följer träffens förval från servern. */}
+              <select value={deviationOwn} onChange={(event) => onDeviationChange(event.target.value)}>
+                <option value="">{t("Som träffen: {level}", { level: `${deviationLevel(snapshot)} · ${t(LEVEL_NAMES[deviationLevel(snapshot)])}` })}</option>
+                {DEVIATION_LEVELS.map((level) => <option value={String(level)} key={level}>{`${level} · ${t(LEVEL_NAMES[level])}`}</option>)}
+              </select>
+            </label>
+            <p className="field-hint">{t(LEVEL_HINTS[deviationLevel(snapshot, deviationOwn)])}</p>
             <div className="info-card">
               <strong>{source === "demo" ? t("Fristående demo") : source === "server" ? "TrainMeet Server" : t("Offline")}</strong>
               <p>{source === "demo" ? t("Fristående demo med två övningsstationer. Inget skickas till trafikspelet.") : source === "server" ? t("Vyn uppdateras från serverns gemensamma driftstatus.") : t("Servern kan inte nås. Senast kända läge visas och trafikåtgärderna är spärrade.")}</p>
@@ -870,6 +894,18 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
   const [busyLineId, setBusyLineId] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>(() => (window.localStorage.getItem("trainmeet-tkl.theme") as Theme) || "light");
   const firstLoad = useRef(true);
+  // Förseningar: terminalens eget val, när bilden kom (klockan går vidare
+  // mellan hämtningarna) och en sekund i taget så att tågen rör sig på linjen.
+  const [deviationOwn, setDeviationOwn] = useState<string>(() => { try { return window.localStorage.getItem(DEVIATION_LEVEL_KEY) || ""; } catch { return ""; } });
+  const receivedAt = useRef(Date.now());
+  const [tick, setTick] = useState(Date.now());
+  const fresh = useRef(changeTracker());
+  const trackedLevel = useRef<number | null>(null);
+  useEffect(() => { const timer = window.setInterval(() => setTick(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
+  const changeDeviation = (value: string) => {
+    setDeviationOwn(value);
+    try { if (value) window.localStorage.setItem(DEVIATION_LEVEL_KEY, value); else window.localStorage.removeItem(DEVIATION_LEVEL_KEY); } catch { /* privat läge */ }
+  };
 
   useEffect(() => {
     if (window.location.pathname.startsWith("/tkl/")) {
@@ -892,6 +928,7 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
       try {
         const result = await loadRuntime();
         if (!active) return;
+        receivedAt.current = Date.now();
         setRuntime(result);
         setRuntimeError(false);
         if (firstLoad.current) {
@@ -1136,11 +1173,33 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
   const focusAfterNow = focusTrains.filter((train) => train.sort_time > now);
   const laterTrains = activeTrains.filter((train) => !focusIds.has(train.id));
 
+  const nowSeconds = clockSeconds(snapshot, receivedAt.current, tick);
+  const lives = trainLive(snapshot, nowSeconds);
+  const level = deviationLevel(snapshot, deviationOwn);
+  // Att byta nivå är ingen ändring i trafiken: minnet börjar om, inget lyser upp.
+  if (trackedLevel.current !== null && trackedLevel.current !== level) fresh.current = changeTracker();
+  trackedLevel.current = level;
+  const cardDeviation = (train: TrainRow, movement: LocalMovementState) => {
+    const live = lives.get(String(train.train_number));
+    const view = deviationView(level, live);
+    const planned = train.arrival_time || train.departure_time || train.sort_time;
+    const done = train.departure_time ? movement.departure === "departed" : movement.arrival === "arrived";
+    const [h, m] = String(planned || "").split(":").map(Number);
+    const expected = view.mark?.tone === "late" && !done && Number.isFinite(h) && Number.isFinite(m)
+      ? (() => { const value = ((h * 60 + m + view.mark!.minutes) % 1440 + 1440) % 1440; return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`; })()
+      : null;
+    const label = !view.mark ? "" : view.mark.tone === "early" ? t("{minutes} min för tidigt", { minutes: view.mark.minutes })
+      : t("{minutes} min sen", { minutes: view.mark.minutes }) + (view.estimated ? ` · ${t("beräknad")}` : "");
+    const changedAt = fresh.current.note(train.id, [movement.arrival, movement.departure, view.mark?.text || ""], Date.now());
+    return { view, expected, label, age: changedAt === null ? null : Date.now() - changedAt };
+  };
+
   const renderTrainCard = (train: TrainRow, defaultExpanded = false) => {
     const key = movementKey(train);
     return (
       <TrainCard
         key={train.id}
+        deviation={cardDeviation(train, movementState[key] ?? emptyMovement())}
         snapshot={snapshot}
         train={train}
         movement={movementState[key] ?? emptyMovement()}
@@ -1175,6 +1234,7 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
 
         <div className="diagram-sticky">
           <StationDiagram
+            nowSeconds={nowSeconds}
             snapshot={snapshot}
             station={station}
             tracks={tracks}
@@ -1249,6 +1309,8 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
           onStationChange={(nextStationId) => { void assignStation(nextStationId); }}
           onReconfigure={() => { void resetTerminalConfig().then(() => window.location.reload()); }}
           shift={tklContext.shift}
+          deviationOwn={deviationOwn}
+          onDeviationChange={changeDeviation}
           onFinishShift={async (status, note) => {
             const activeShift = tklContext.shift;
             if (!activeShift) return;
