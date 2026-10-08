@@ -71,11 +71,31 @@ class TerminalHTTPTests(unittest.TestCase):
         self.addCleanup(self.terminal.server_close)
         self.addCleanup(self.terminal.shutdown)
         self.server_url = f"http://127.0.0.1:{self.trainmeet.server_port}"
+        # Pairing is administration: it takes TKL's owner or an administrator.
+        status, _, set_cookie = self.raw("POST", "/terminal/setup/owner",
+                                         {"display_name": "Casper", "email": "casper@example.se", "password": "ett-langt-losenord"})
+        self.assertEqual(201, status)
+        self.admin = set_cookie.split(";", 1)[0]
 
-    def call(self, method, path, payload=None):
+    def raw(self, method, path, payload=None, cookie=None):
         data = None if payload is None else json.dumps(payload).encode()
-        request = Request(f"http://127.0.0.1:{self.terminal.server_port}{path}", data=data, method=method,
-                          headers={"Content-Type": "application/json"})
+        headers = {"Content-Type": "application/json"}
+        if cookie:
+            headers["Cookie"] = cookie
+        request = Request(f"http://127.0.0.1:{self.terminal.server_port}{path}", data=data, method=method, headers=headers)
+        try:
+            with urlopen(request, timeout=5) as response:
+                return response.status, json.loads(response.read()), response.headers.get("Set-Cookie")
+        except HTTPError as error:
+            body = error.read()
+            return error.code, json.loads(body) if body.startswith(b"{") else {}, None
+
+    def call(self, method, path, payload=None, cookie=None):
+        data = None if payload is None else json.dumps(payload).encode()
+        headers = {"Content-Type": "application/json"}
+        if cookie:
+            headers["Cookie"] = cookie
+        request = Request(f"http://127.0.0.1:{self.terminal.server_port}{path}", data=data, method=method, headers=headers)
         try:
             with urlopen(request, timeout=5) as response:
                 return response.status, json.loads(response.read())
@@ -84,7 +104,16 @@ class TerminalHTTPTests(unittest.TestCase):
             return error.code, json.loads(body) if body.startswith(b"{") else {}
 
     def pair(self, code="123456"):
-        return self.call("POST", "/terminal/pair", {"server_url": self.server_url, "pairing_code": code, "terminal_name": "CDA TKL 1"})
+        return self.call("POST", "/terminal/pair", {"server_url": self.server_url, "pairing_code": code, "terminal_name": "CDA TKL 1"}, cookie=self.admin)
+
+    def test_pairing_is_administration_and_the_signal_box_is_not(self):
+        status, result = self.call("POST", "/terminal/pair", {"server_url": self.server_url, "pairing_code": "123456", "terminal_name": "CDA TKL 1"})
+        self.assertEqual((401, "Inloggning krävs"), (status, result["message"]))
+        self.assertEqual([], StandInServer.calls)
+        self.pair()
+        # Whoever stands at the terminal clears trains without signing in.
+        status, result = self.call("POST", "/terminal/tkl/movement", {"station_id": "cda"})
+        self.assertEqual((200, "/v1/tkl/movement"), (status, result["path"]))
 
     def test_pairing_with_the_servers_code_as_the_screen_sends_it(self):
         status, result = self.pair()

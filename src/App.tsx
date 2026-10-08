@@ -2,14 +2,16 @@ import { t, locale } from "./i18n";
 import { DAY_CHANGE_SEEN_KEY, dayChangeNotice, type DayNotice } from "./dayChange";
 import { authenticatedMessage } from "./auth-message";
 import { accessLost } from "./access-lost";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   House,
   Check,
   CircleCheckBig,
   Clock3,
   Gamepad2,
+  KeyRound,
   LogIn,
+  LogOut,
   MapPin,
   Menu,
   MessageCircle,
@@ -19,11 +21,18 @@ import {
   ShieldCheck,
   TrainFront,
   UserRound,
+  Users,
   Wifi,
   X,
 } from "lucide-react";
 import {
+  APIError,
+  canAdminister,
+  changePassword,
+  createOwner,
+  deleteUser,
   inspectServer,
+  inviteUser,
   isHostedBrowser,
   isDemoTerminal,
   isManagedBrowser,
@@ -31,21 +40,33 @@ import {
   connectWifi,
   discoverServers,
   finishTklShift,
+  listUsers,
   loadAuthStatus,
   loadRuntime,
+  loadSession,
   loadTerminalConfig,
   loadTklContext,
   loadWifiNetworks,
   loginAdmin,
+  mayOperate,
+  noAccounts,
   pairTerminal,
   performTklLineAction,
+  redeemInvitation,
+  reissueInvitation,
   resetTerminalConfig,
   saveTerminalConfig,
+  signIn,
+  signOut,
   startTklShift,
   startTerminalUpdate,
   updateTklMovement,
+  updateUser,
+  type AccountRole,
+  type AccountUser,
   type AuthStatus,
   type RuntimeResult,
+  type SessionStatus,
   type TerminalConfig,
   type TklContext,
   type TklShift,
@@ -378,14 +399,311 @@ function UnavailableView({ onRetry }: { onRetry: () => void }) {
   );
 }
 
+const roleLabel = (role: AccountRole) => t(role === "owner" ? "Ägare" : role === "admin" ? "Administratör" : "Klarerare");
+
+/** TKL's own sign-in: the address is the account. "Jag har en kod" is the
+ *  invited person's first sign-in, and the way back for a forgotten password. */
+function SignInForm({ onSignedIn }: { onSignedIn: (session: SessionStatus) => void }) {
+  const [withCode, setWithCode] = useState(false);
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [repeat, setRepeat] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<UiMessage>("");
+  const ready = Boolean(email.trim() && password && (!withCode || (code.trim() && repeat)));
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!ready || busy) return;
+    if (withCode && password !== repeat) { setMessage("Lösenorden är inte lika."); return; }
+    setBusy(true);
+    setMessage("");
+    try {
+      const next = withCode ? await redeemInvitation(email, code, password) : await signIn(email, password);
+      // The form may stay on screen (a dispatcher signed in where an
+      // administrator is needed): back to a plain sign-in, nothing kept.
+      setWithCode(false);
+      setCode("");
+      setPassword("");
+      setRepeat("");
+      onSignedIn(next);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Inloggningen misslyckades.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form className="account-form" onSubmit={(event) => { void submit(event); }}>
+      <div className="login-fields is-stacked">
+        <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder={t("E-postadress")} type="email" autoComplete="username" autoFocus />
+        {withCode && <input className="account-code" value={code} onChange={(event) => setCode(event.target.value)} placeholder={t("Kod")} autoComplete="one-time-code" />}
+        <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={withCode ? t("Nytt lösenord") : t("Lösenord")} autoComplete={withCode ? "new-password" : "current-password"} />
+        {withCode && <input type="password" value={repeat} onChange={(event) => setRepeat(event.target.value)} placeholder={t("Upprepa lösenordet")} autoComplete="new-password" />}
+      </div>
+      {message && <p className="setup-message is-error">{messageText(message)}</p>}
+      <button type="submit" className="setup-finish" disabled={busy || !ready}><LogIn /> {busy ? t("Ansluter …") : withCode ? t("Välj ett nytt lösenord") : t("Logga in")}</button>
+      <button type="button" className="text-action" onClick={() => { setWithCode(!withCode); setMessage(""); }}>{withCode ? t("Till inloggningen") : t("Jag har en kod")}</button>
+    </form>
+  );
+}
+
+function SignInView({ session, terminalConfig, admin, onSignedIn }: {
+  session: SessionStatus;
+  terminalConfig: TerminalConfig | null;
+  admin?: boolean;
+  onSignedIn: (session: SessionStatus) => void;
+}) {
+  return (
+    <main className="setup-view auth-view">
+      <div className="setup-card auth-card">
+        <div className="setup-brand"><TrainMeetLogo /><span>{t("TrainMeet TKL")}</span></div>
+        <span className="micro-heading">{terminalConfig?.station_name || terminalConfig?.terminal_name || t("TrainMeet TKL Terminal")}</span>
+        <h1>{admin ? t("Logga in som administratör") : t("Logga in för att fortsätta")}</h1>
+        <p className="setup-intro">{admin ? t("Inställningarna kräver administratörsinloggning.") : t("TKL via webben kräver inloggning. Logga in med ditt konto för att använda ställverket.")}</p>
+        {session.user && <p className="setup-message">{messageText({ source: "Inloggad som {name}.", values: { name: session.user.display_name } })} {roleLabel(session.user.role)}</p>}
+        <SignInForm onSignedIn={onSignedIn} />
+      </div>
+    </main>
+  );
+}
+
+/** The first account. Only when nobody can sign in yet, and only from the
+ *  computer running TKL or its network: the same window as on TrainMeet Server. */
+function CreateOwnerForm({ onCreated }: { onCreated: (session: SessionStatus) => void }) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [repeat, setRepeat] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<UiMessage>("");
+  const ready = Boolean(name.trim() && email.trim() && password && repeat);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!ready || busy) return;
+    if (password !== repeat) { setMessage("Lösenorden är inte lika."); return; }
+    setBusy(true);
+    setMessage("");
+    try {
+      onCreated(await createOwner({ display_name: name, email, password }));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Ägaren kunde inte skapas.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form className="account-form" onSubmit={(event) => { void submit(event); }}>
+      <div className="login-fields is-stacked">
+        <label><span>{t("Namn")}</span><input value={name} onChange={(event) => setName(event.target.value)} placeholder={t("Ditt namn")} autoComplete="name" autoFocus /></label>
+        <label><span>{t("E-postadress")}</span><input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="username" /></label>
+        <label><span>{t("Lösenord")}</span><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" /></label>
+        <label><span>{t("Upprepa lösenordet")}</span><input type="password" value={repeat} onChange={(event) => setRepeat(event.target.value)} autoComplete="new-password" /></label>
+      </div>
+      {message && <p className="setup-message is-error">{messageText(message)}</p>}
+      <button type="submit" className="setup-finish" disabled={busy || !ready}><KeyRound /> {t("Skapa ägaren")}</button>
+    </form>
+  );
+}
+
+function CreateOwnerView({ session, terminalConfig, onCreated }: {
+  session: SessionStatus;
+  terminalConfig: TerminalConfig | null;
+  onCreated: (session: SessionStatus) => void;
+}) {
+  return (
+    <main className="setup-view auth-view">
+      <div className="setup-card auth-card">
+        <div className="setup-brand"><TrainMeetLogo /><span>{t("TrainMeet TKL")}</span></div>
+        <span className="micro-heading">{terminalConfig?.terminal_name || t("Första starten")}</span>
+        <h1>{t("Skapa ägaren")}</h1>
+        <p className="setup-intro">{t("Ingen ägare finns än. Ägaren är den som lägger till och tar bort användare; en administratör sköter hela TKL men inte vilka som har tillgång.")}</p>
+        {session.owner_setup_allowed
+          ? <CreateOwnerForm onCreated={onCreated} />
+          : <p className="setup-message is-error">{t("Ägaren skapas på datorn där TKL körs eller från dess lokala nätverk.")}</p>}
+        <p className="setup-footnote">{t(session.at_the_machine
+          ? "Ägaren bjuder sedan in fler under Inställningar → Användare. Operatören behöver inte logga in på den här datorn."
+          : "Ägaren bjuder sedan in fler under Inställningar → Användare. När TKL körs via webben loggar alla in med sitt konto.")}</p>
+      </div>
+    </main>
+  );
+}
+
+function PasswordForm() {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [repeat, setRepeat] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<UiMessage>("");
+  const [kind, setKind] = useState<"success" | "error">("error");
+  const ready = Boolean(current && next && repeat);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!ready || busy) return;
+    if (next !== repeat) { setKind("error"); setMessage("Lösenorden är inte lika."); return; }
+    setBusy(true);
+    try {
+      await changePassword(current, next);
+      setCurrent(""); setNext(""); setRepeat("");
+      setKind("success"); setMessage("Lösenordet är bytt.");
+    } catch (error) {
+      setKind("error"); setMessage(error instanceof Error ? error.message : "Åtgärden gick inte att utföra");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form className="account-form" onSubmit={(event) => { void submit(event); }}>
+      <div className="login-fields is-stacked">
+        <input type="password" value={current} onChange={(event) => setCurrent(event.target.value)} placeholder={t("Nuvarande lösenord")} autoComplete="current-password" />
+        <input type="password" value={next} onChange={(event) => setNext(event.target.value)} placeholder={t("Nytt lösenord")} autoComplete="new-password" />
+        <input type="password" value={repeat} onChange={(event) => setRepeat(event.target.value)} placeholder={t("Upprepa lösenordet")} autoComplete="new-password" />
+      </div>
+      {message && <p className={`setup-message is-${kind}`}>{messageText(message)}</p>}
+      <button type="submit" className="secondary-action" disabled={busy || !ready}>{t("Spara lösenordet")}</button>
+    </form>
+  );
+}
+
+function AccountCard({ session, onSession }: { session: SessionStatus; onSession: (session: SessionStatus) => void }) {
+  const [message, setMessage] = useState<UiMessage>("");
+  if (!session.user) return null;
+  const leave = async () => {
+    try {
+      onSession(await signOut());
+    } catch {
+      setMessage("Utloggningen misslyckades.");
+    }
+  };
+  return (
+    <div className="info-card account-card">
+      <span className="micro-heading">{t("Mitt konto")}</span>
+      <strong>{session.user.display_name}</strong>
+      <p>{session.user.email} · {roleLabel(session.user.role)}</p>
+      <details><summary>{t("Byt lösenord")}</summary><PasswordForm /></details>
+      {message && <p className="setup-message is-error">{messageText(message)}</p>}
+      <button type="button" className="reconfigure-button" onClick={() => { void leave(); }}><LogOut /> {t("Logga ut")}</button>
+    </div>
+  );
+}
+
+/** Inställningar → Användare. The owner invites with a one-time code and
+ *  never sets anybody's password; an administrator can only look. */
+function UsersPanel({ session }: { session: SessionStatus }) {
+  const owner = session.user?.role === "owner";
+  const [users, setUsers] = useState<AccountUser[]>([]);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<AccountRole>("operator");
+  const [code, setCode] = useState<{ name: string; code: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<UiMessage>("");
+  const [kind, setKind] = useState<"success" | "error">("success");
+  const load = () => listUsers().then((result) => setUsers(result.users)).catch(() => { setKind("error"); setMessage("Användarna kunde inte läsas"); });
+  useEffect(() => { void load(); }, []);
+  const run = async (action: () => Promise<void>) => {
+    setBusy(true);
+    setMessage("");
+    try {
+      await action();
+      await load();
+    } catch (error) {
+      setKind("error");
+      setMessage(error instanceof Error ? error.message : "Åtgärden gick inte att utföra");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const invite = (event: FormEvent) => {
+    event.preventDefault();
+    if (busy || !name.trim() || !email.trim()) return;
+    void run(async () => {
+      const result = await inviteUser({ display_name: name, email, role });
+      setCode({ name: result.user.display_name, code: result.code });
+      setName("");
+      setEmail("");
+      setKind("success");
+      setMessage({ source: "{name} är inbjuden. Lämna över koden.", values: { name: result.user.display_name } });
+    });
+  };
+  const reissue = (user: AccountUser) => run(async () => {
+    const result = await reissueInvitation(user.user_id);
+    setCode({ name: user.display_name, code: result.code });
+  });
+  const changeRole = (user: AccountUser, next: AccountRole) => run(async () => {
+    await updateUser({ user_id: user.user_id, role: next });
+    setKind("success");
+    setMessage({ source: next === "owner" ? "{name} är nu ägare" : next === "admin" ? "{name} är nu administratör" : "{name} är nu klarerare", values: { name: user.display_name } });
+  });
+  const remove = (user: AccountUser) => {
+    if (!window.confirm(t("Ta bort {name}?", { name: user.display_name }))) return;
+    void run(async () => {
+      await deleteUser(user.user_id);
+      setKind("success");
+      setMessage({ source: "{name} är borttagen", values: { name: user.display_name } });
+    });
+  };
+  return (
+    <section className="users-panel">
+      <span className="micro-heading">{t("Användare")}</span>
+      <ul className="user-list">
+        {users.map((user) => (
+          <li key={user.user_id} className="user-row">
+            <div><strong>{user.display_name}</strong><small>{user.email}</small>{user.invitation_pending && <small className="is-pending">{t("Inbjuden — har inte valt lösenord")}</small>}</div>
+            {owner && user.user_id !== session.user?.user_id ? (
+              <div className="user-actions">
+                <select aria-label={t("Roll")} value={user.role} disabled={busy} onChange={(event) => { void changeRole(user, event.target.value as AccountRole); }}>
+                  <option value="owner">{t("Ägare")}</option>
+                  <option value="admin">{t("Administratör")}</option>
+                  <option value="operator">{t("Klarerare")}</option>
+                </select>
+                <button type="button" disabled={busy} onClick={() => { void reissue(user); }}>{t("Ny kod")}</button>
+                <button type="button" className="is-danger" disabled={busy} onClick={() => remove(user)}>{t("Ta bort")}</button>
+              </div>
+            ) : <span className="role-chip">{roleLabel(user.role)}</span>}
+          </li>
+        ))}
+      </ul>
+      {code && (
+        <div className="info-card account-code-card">
+          <strong>{t("Ge koden till {name}", { name: code.name })}</strong>
+          <p className="account-code-value">{code.code}</p>
+          <p>{t("Koden gäller i sju dagar och kan bara användas en gång.")}</p>
+        </div>
+      )}
+      {message && <p className={`setup-message is-${kind}`}>{messageText(message)}</p>}
+      {owner && (
+        <form className="account-form" onSubmit={invite}>
+          <span className="micro-heading">{t("Lägg till en användare")}</span>
+          <div className="login-fields is-stacked">
+            <input value={name} onChange={(event) => setName(event.target.value)} placeholder={t("Namn")} autoComplete="off" />
+            <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder={t("E-postadress")} type="email" autoComplete="off" />
+            <select aria-label={t("Roll")} value={role} onChange={(event) => setRole(event.target.value as AccountRole)}>
+              <option value="operator">{t("Klarerare")}</option>
+              <option value="admin">{t("Administratör")}</option>
+              <option value="owner">{t("Ägare")}</option>
+            </select>
+          </div>
+          <p className="setup-message">{t("Klarerare kan använda ställverket men inte ändra inställningarna. Administratörer sköter hela TKL men inte vilka som har tillgång.")}</p>
+          <button type="submit" className="secondary-action" disabled={busy || !name.trim() || !email.trim()}><Users /> {t("Bjud in")}</button>
+        </form>
+      )}
+    </section>
+  );
+}
+
 function AuthenticationView({
   status,
   terminalConfig,
+  session,
+  onSession,
   onAuthenticated,
   onReconfigure,
 }: {
   status: AuthStatus;
   terminalConfig: TerminalConfig;
+  session: SessionStatus;
+  onSession: (session: SessionStatus) => void;
   onAuthenticated: (status: AuthStatus) => void;
   onReconfigure: () => void;
 }) {
@@ -416,19 +734,33 @@ function AuthenticationView({
         <span className="micro-heading">{terminalConfig.station_name || terminalConfig.terminal_name}</span>
         <h1>{status.access_mode === "terminal" ? t("Parkoppla terminalen igen") : t("Logga in för att fortsätta")}</h1>
         <p className="setup-intro">{status.access_mode === "terminal" ? t("Terminalens tidigare behörighet gäller inte längre. Ange anslutningskoden från TrainMeet Server.") : t("Din station och terminalprofil finns kvar efter inloggningen.")}</p>
-        <div className={status.access_mode === "terminal" ? "login-fields is-code" : "login-fields"}>
-          {status.access_mode === "terminal" ? (
-            <CodeBoxes value={pairingCode} onChange={setPairingCode} label={t("Anslutningskod")} />
-          ) : (
-            <>
-              <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder={t("E-postadress")} type="email" autoComplete="username" />
-              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={t("Lösenord")} autoComplete="current-password" />
-            </>
-          )}
-        </div>
-        {message && <p className="setup-message is-error">{messageText(message)}</p>}
-        <button type="button" className="setup-finish" onClick={() => { void submit(); }} disabled={busy || (status.access_mode === "terminal" ? !pairingCode.trim() : !username.trim() || !password)}><LogIn /> {busy ? t("Ansluter …") : t("Fortsätt")}</button>
-        <button type="button" className="text-action" onClick={onReconfigure}>{t("Byt server eller station")}</button>
+        {session.available && !session.configured ? (
+          <>
+            <p className="setup-message">{t("Ingen ägare finns än. Ägaren är den som lägger till och tar bort användare; en administratör sköter hela TKL men inte vilka som har tillgång.")}</p>
+            <CreateOwnerForm onCreated={onSession} />
+          </>
+        ) : session.available && !canAdminister(session) ? (
+          <>
+            <p className="setup-message">{t("Parkoppling och terminalinställningar kräver administratörsinloggning.")}</p>
+            <SignInForm onSignedIn={onSession} />
+          </>
+        ) : (
+          <>
+            <div className={status.access_mode === "terminal" ? "login-fields is-code" : "login-fields"}>
+              {status.access_mode === "terminal" ? (
+                <CodeBoxes value={pairingCode} onChange={setPairingCode} label={t("Anslutningskod")} />
+              ) : (
+                <>
+                  <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder={t("E-postadress")} type="email" autoComplete="username" />
+                  <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={t("Lösenord")} autoComplete="current-password" />
+                </>
+              )}
+            </div>
+            {message && <p className="setup-message is-error">{messageText(message)}</p>}
+            <button type="button" className="setup-finish" onClick={() => { void submit(); }} disabled={busy || (status.access_mode === "terminal" ? !pairingCode.trim() : !username.trim() || !password)}><LogIn /> {busy ? t("Ansluter …") : t("Fortsätt")}</button>
+            <button type="button" className="text-action" onClick={onReconfigure}>{t("Byt server eller station")}</button>
+          </>
+        )}
       </div>
     </main>
   );
@@ -662,6 +994,8 @@ function OverlayPanel({
   onThemeChange,
   onStationChange,
   onReconfigure,
+  session,
+  onSession,
   shift,
   onFinishShift,
   deviationOwn,
@@ -678,6 +1012,8 @@ function OverlayPanel({
   onThemeChange: (theme: Theme) => void;
   onStationChange: (stationId: string) => void;
   onReconfigure: () => void;
+  session: SessionStatus;
+  onSession: (session: SessionStatus) => void;
   shift: TklShift;
   onFinishShift: (status: "handover" | "closed", note: string) => Promise<void>;
 }) {
@@ -688,14 +1024,14 @@ function OverlayPanel({
   const [finishingShift, setFinishingShift] = useState(false);
   const [shiftError, setShiftError] = useState("");
   useEffect(() => {
-    if (overlay !== "settings" || isManagedBrowser()) return;
+    if (overlay !== "settings" || isManagedBrowser() || !canAdminister(session)) return;
     void checkTerminalUpdate().then((status) => {
       setUpdateAvailable(Boolean(status.supported && status.update_available));
       setUpdateStatus(status.check_error || (status.update_available
         ? t("Ny version {latest} finns. Installerad: {installed}.", { latest: status.latest_version ?? "", installed: status.installed_version ?? "" })
         : t("Installerad version {installed} är aktuell.", { installed: status.installed_version ?? "" })));
     }).catch(() => setUpdateStatus(t("Uppdatering hanteras av TrainMeet Server i det här körläget.")));
-  }, [overlay]);
+  }, [overlay, session]);
 
   const installUpdate = async () => {
     if (!window.confirm(t("Installera senaste TrainMeet TKL och starta om terminalvyn?"))) return;
@@ -742,7 +1078,20 @@ function OverlayPanel({
           <button type="button" className="icon-button" onClick={onClose} aria-label={t("Stäng")}><X /></button>
         </div>
 
-        {overlay === "settings" && (
+        {overlay === "settings" && session.available && !session.configured && (
+          <div className="overlay-content form-stack">
+            <p className="overlay-intro">{t("Ingen ägare finns än. Ägaren är den som lägger till och tar bort användare; en administratör sköter hela TKL men inte vilka som har tillgång.")}</p>
+            <CreateOwnerForm onCreated={onSession} />
+          </div>
+        )}
+        {overlay === "settings" && session.available && session.configured && !canAdminister(session) && (
+          <div className="overlay-content form-stack">
+            <p className="overlay-intro">{t("Inställningarna kräver administratörsinloggning.")}</p>
+            {session.user && <p className="setup-message">{messageText({ source: "Inloggad som {name}.", values: { name: session.user.display_name } })} {roleLabel(session.user.role)}</p>}
+            <SignInForm onSignedIn={onSession} />
+          </div>
+        )}
+        {overlay === "settings" && canAdminister(session) && (
           <div className="overlay-content form-stack">
             <label>
               <span>{t("Station")}</span>
@@ -775,6 +1124,8 @@ function OverlayPanel({
               <strong>{source === "demo" ? t("Fristående demo") : source === "server" ? "TrainMeet Server" : t("Offline")}</strong>
               <p>{source === "demo" ? t("Fristående demo med två övningsstationer. Inget skickas till trafikspelet.") : source === "server" ? t("Vyn uppdateras från serverns gemensamma driftstatus.") : t("Servern kan inte nås. Senast kända läge visas och trafikåtgärderna är spärrade.")}</p>
             </div>
+            {session.available && <AccountCard session={session} onSession={onSession} />}
+            {session.available && <UsersPanel session={session} />}
             <ReleaseNotes />
             {!isManagedBrowser() && <><button type="button" className="reconfigure-button" onClick={onReconfigure}>{t("Kör första installationen igen")}</button>
             <div className="terminal-update-card">
@@ -809,6 +1160,9 @@ function OverlayPanel({
 
         {overlay === "menu" && (
           <div className="overlay-content menu-list">
+            {session.available && session.user && session.login_required && (
+              <button type="button" onClick={() => { void signOut().then((next) => { onSession(next); onClose(); }).catch(() => undefined); }}><LogOut /> {t("Logga ut")}</button>
+            )}
             {window.location.pathname.startsWith("/tkl/") && <>
               <a href="/#settings">{t("Inställningar")}</a>
               <a href="/#screens">{t("Skärmar")}</a>
@@ -894,7 +1248,13 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
   const [finishedShift, setFinishedShift] = useState<{ shift: TklShift; status: "handover" | "closed" } | null>(null);
   const [busyLineId, setBusyLineId] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>(() => (window.localStorage.getItem("trainmeet-tkl.theme") as Theme) || "light");
+  // TKL's own accounts. Nothing below runs against the terminal until the
+  // session says the screen may operate: at the machine always, over the web
+  // once somebody has signed in.
+  const [session, setSession] = useState<SessionStatus | null>(null);
   const firstLoad = useRef(true);
+  const refreshSession = () => loadSession().then(setSession, () => setSession(noAccounts));
+  const operating = mayOperate(session);
   // Förseningar: terminalens eget val, när bilden kom (klockan går vidare
   // mellan hämtningarna) och en sekund i taget så att tågen rör sig på linjen.
   const [deviationOwn, setDeviationOwn] = useState<string>(() => { try { return window.localStorage.getItem(DEVIATION_LEVEL_KEY) || ""; } catch { return ""; } });
@@ -932,18 +1292,28 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
     if (window.location.pathname.startsWith("/tkl/")) {
       try { sessionStorage.setItem("trainmeet.workspace", "tkl"); } catch { /* private browser */ }
     }
-    if (!initialConfig) void loadTerminalConfig().then(setTerminalConfig);
+    void refreshSession();
+    const expired = () => { void refreshSession(); };
+    window.addEventListener("trainmeet:session-expired", expired);
+    return () => window.removeEventListener("trainmeet:session-expired", expired);
   }, []);
 
   useEffect(() => {
-    if (!terminalConfig?.configured) return;
+    // The profile is the terminal's to give: over the web it comes only
+    // after the sign-in, so it is read once the screen may operate.
+    if (initialConfig || !operating) return;
+    void loadTerminalConfig().then(setTerminalConfig);
+  }, [operating]);
+
+  useEffect(() => {
+    if (!terminalConfig?.configured || !operating) return;
     void loadAuthStatus().then(setAuthStatus).catch(() => {
       setAuthStatus({ authenticated: false, access_mode: window.location.port === "8790" ? "terminal" : "external", username: "", password_configured: true, must_change_password: false });
     });
-  }, [terminalConfig]);
+  }, [terminalConfig, operating]);
 
   useEffect(() => {
-    if (!terminalConfig?.configured || !authStatus?.authenticated) return undefined;
+    if (!terminalConfig?.configured || !authStatus?.authenticated || !operating) return undefined;
     let active = true;
     const refresh = async () => {
       try {
@@ -971,10 +1341,10 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
       window.clearInterval(timer);
       window.removeEventListener("trainmeet:context-stale", refresh);
     };
-  }, [terminalConfig, authStatus]);
+  }, [terminalConfig, authStatus, operating]);
 
   useEffect(() => {
-    if (!runtime || !stationId || !authStatus?.authenticated) return undefined;
+    if (!runtime || !stationId || !authStatus?.authenticated || !operating) return undefined;
     let active = true;
     const refreshContext = async () => {
       try {
@@ -989,6 +1359,9 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
         }])));
       } catch (error) {
         if (active && isManagedBrowser()) setTklContext(null);
+        // The terminal's own sign-in ran out: the sign-in view takes over.
+        // That is not the Server withdrawing the station.
+        if (error instanceof APIError && error.code === "authentication_required") return;
         if (active && error instanceof Error && accessLost(error.message)) {
           setAuthStatus((current) => current ? { ...current, authenticated: false } : current);
         }
@@ -998,23 +1371,34 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
     window.addEventListener("trainmeet:context-stale", refreshContext);
     const timer = window.setInterval(refreshContext, 3000);
     return () => { active = false; window.clearInterval(timer); window.removeEventListener("trainmeet:context-stale", refreshContext); };
-  }, [runtime?.snapshot.publication_id, runtime?.source, stationId, authStatus?.authenticated, terminalConfig?.terminal_name]);
+  }, [runtime?.snapshot.publication_id, runtime?.source, stationId, authStatus?.authenticated, terminalConfig?.terminal_name, operating]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     window.localStorage.setItem("trainmeet-tkl.theme", theme);
   }, [theme]);
 
+  if (!session || (operating && !terminalConfig)) return <LoadingView />;
+  // No owner yet: the first start creates one. A terminal that was paired
+  // before accounts existed keeps running at the machine, and asks for the
+  // owner when the administration is opened.
+  if (session.available && !session.configured && (!terminalConfig?.configured || !session.at_the_machine)) {
+    return <CreateOwnerView session={session} terminalConfig={terminalConfig} onCreated={setSession} />;
+  }
+  if (session.available && session.login_required && !session.user) return <SignInView session={session} terminalConfig={terminalConfig} onSignedIn={setSession} />;
   if (!terminalConfig) return <LoadingView />;
-  if (!terminalConfig.configured) return <SetupView onComplete={(config, snapshot, auth) => {
-    setTerminalConfig(config);
-    setAuthStatus(auth);
-    setRuntime({ snapshot, source: isDemoTerminal() ? "demo" : "server", connected: true });
-    setStationId(config.station_id);
-  }} />;
+  if (!terminalConfig.configured) {
+    if (session.available && !canAdminister(session)) return <SignInView session={session} terminalConfig={terminalConfig} admin onSignedIn={setSession} />;
+    return <SetupView onComplete={(config, snapshot, auth) => {
+      setTerminalConfig(config);
+      setAuthStatus(auth);
+      setRuntime({ snapshot, source: isDemoTerminal() ? "demo" : "server", connected: true });
+      setStationId(config.station_id);
+    }} />;
+  }
   if (!authStatus) return <LoadingView />;
   if (!authStatus.authenticated && isManagedBrowser()) return <UnavailableView onRetry={() => window.location.reload()} />;
-  if (!authStatus.authenticated) return <AuthenticationView status={authStatus} terminalConfig={terminalConfig} onAuthenticated={setAuthStatus} onReconfigure={() => { void resetTerminalConfig().then(() => window.location.reload()); }} />;
+  if (!authStatus.authenticated) return <AuthenticationView status={authStatus} terminalConfig={terminalConfig} session={session} onSession={setSession} onAuthenticated={setAuthStatus} onReconfigure={() => { void resetTerminalConfig().then(() => window.location.reload()); }} />;
   if (runtimeError && !runtime) return <UnavailableView onRetry={() => window.location.reload()} />;
   if (!runtime || !stationId) return <LoadingView />;
 
@@ -1258,7 +1642,7 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
           source={source}
           freightMode={freightMode}
           onFreightToggle={() => setFreightMode((value) => !value)}
-          onOverlay={setOverlay}
+          onOverlay={(next) => { setOverlay(next); if (next === "settings") void refreshSession(); }}
           onHome={() => { setOverlay(null); setSelectedTrain(null); setFreightMode(false); window.scrollTo({top: 0}); }}
         />
 
@@ -1338,6 +1722,8 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
           onThemeChange={setTheme}
           onStationChange={(nextStationId) => { void assignStation(nextStationId); }}
           onReconfigure={() => { void resetTerminalConfig().then(() => window.location.reload()); }}
+          session={session}
+          onSession={setSession}
           shift={tklContext.shift}
           deviationOwn={deviationOwn}
           onDeviationChange={changeDeviation}
