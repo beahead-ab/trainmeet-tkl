@@ -25,7 +25,7 @@ curl -fsSL https://raw.githubusercontent.com/beahead-ab/trainmeet-tkl/main/insta
 sudo reboot
 ```
 
-Efter omstart öppnas första-start-guiden automatiskt. Välj Wi-Fi vid behov, TrainMeet Server, träff/station, terminalnamn och skärmorientering. Därefter startar terminalen alltid direkt på den valda stationen.
+Efter omstart öppnas första-start-guiden automatiskt. Skapa först TKL:s ägare (namn, e-postadress och lösenord), välj sedan Wi-Fi vid behov, TrainMeet Server, träff/station, terminalnamn och skärmorientering. Därefter startar terminalen alltid direkt på den valda stationen, och ställverket körs utan inloggning. Se [Konton och inloggning](#konton-och-inloggning).
 
 ## Från första start till avslutat trafikpass
 
@@ -45,6 +45,44 @@ Terminalen har ett avsiktligt tydligt start- och slutläge:
 6. **Lämna över eller avsluta.** En överlämningsanteckning kan lämnas till nästa operatör. Vid avslut markeras stationen som obemannad och en sammanfattning visas.
 
 Om en station redan har ett aktivt trafikpass visas det före övertagandet. Operatören måste uttryckligen välja att ta över; inget pågående linjeärende försvinner.
+
+## Konton och inloggning
+
+TKL har egna konton, skilda från TrainMeet Servers. Kontot är e-postadressen;
+det finns inget användarnamn.
+
+| Roll | Får |
+|---|---|
+| Ägare | Lägger till och tar bort användare under **Inställningar → Användare**, och allt en administratör får. |
+| Administratör | Sköter hela TKL: server, station, parkoppling, nätverk och uppdatering. Inte vilka som har tillgång. |
+| Klarerare | Kör ställverket. |
+
+Vem som behöver logga in beror på var skärmen står:
+
+- **Vid datorn där TKL körs** (kiosken på Raspberry Pi, eller `npm run dev` på
+  en dator) kör vem som helst ställverket utan att logga in – vem som helst på
+  en träff ska kunna vara klarerare. Inloggning krävs först när någon håller in
+  stationsnamnet och går in i administrationen.
+- **Via webben** (till exempel `cda-tkl.trainmeet.app`) krävs inloggning för
+  allt, också ställverket. TKL räknar sig som webben när anropet kommer genom
+  en proxy (`X-Forwarded-*`) eller från en annan dator, och alltid när tjänsten
+  startas med `--require-login` eller `TRAINMEET_TKL_REQUIRE_LOGIN=1`.
+
+Vid första starten skapas ägaren: namn, e-postadress och lösenord (8–256
+tecken). Ägaren bjuder sedan in fler under **Inställningar → Användare** och
+väljer roll. Den inbjudne får en engångskod (`ABCD-EFGH`, gäller i sju dagar)
+som lämnas över på plats och löses in med **Jag har en kod** på inloggningen,
+där personen väljer sitt eget lösenord. Ägaren känner alltså aldrig till någon
+annans lösenord. Samma väg gäller för den som glömt sitt lösenord: ägaren
+trycker **Ny kod**.
+
+En inloggning gäller i tolv timmar och överlever en omstart av terminalen.
+Kontona ligger i `/var/lib/trainmeet-tkl/users.json` (bara hashar, aldrig
+lösenord eller koder i klartext) och inloggningarna i `sessions.json`. En
+terminal som parkopplades innan kontona fanns fortsätter köra ställverket vid
+datorn och ber om ägaren nästa gång administrationen öppnas. Har alla ägare
+låst sig ute tar den som har tillgång till datorn bort `users.json`, så ber
+TKL om en ny ägare.
 
 ## Ladda ner koden
 
@@ -110,7 +148,7 @@ Installationen lägger in:
 
 Vid första starten kan operatören ansluta Wi-Fi direkt på pekskärmen och väljer därefter TrainMeet Server, aktiv träff/station, terminalnamn och skärmorientering. Profilen sparas i `/var/lib/trainmeet-tkl/terminal-config.json`. Därefter öppnar apparaten alltid sin tilldelade station direkt. Wi-Fi hanteras av Raspberry Pi OS NetworkManager och lösenordet skickas direkt till `nmcli`; TKL sparar ingen egen kopia.
 
-TrainMeet Server hittas automatiskt via mDNS när servern och terminalen finns på samma lokala nätverk. Det går också att skriva serveradressen manuellt. Terminaladministrationen öppnas genom att hålla stationsnamnet i sidhuvudet intryckt i fem sekunder.
+TrainMeet Server hittas automatiskt via mDNS när servern och terminalen finns på samma lokala nätverk. Det går också att skriva serveradressen manuellt. Terminaladministrationen öppnas genom att hålla stationsnamnet i sidhuvudet intryckt i fem sekunder; den kräver att TKL:s ägare eller en administratör loggar in.
 
 I terminaladministrationen kan man även kontrollera och installera senaste TKL-versionen från GitHub. Uppdateringen körs av en separat root-ägd systemtjänst; webbgränssnittet får endast rättighet att starta just TKL-uppdateringen.
 
@@ -137,6 +175,7 @@ Konfigurationen i `/var/lib/trainmeet-tkl/terminal-config.json` ligger kvar vid 
 | Lokalt terminalgränssnitt | `http://127.0.0.1:8790` |
 | Program och byggt UI | `/opt/trainmeet-tkl` |
 | Terminalprofil och cache | `/var/lib/trainmeet-tkl` |
+| Konton och inloggningar | `/var/lib/trainmeet-tkl/users.json`, `sessions.json` |
 | Terminaltjänst | `trainmeet-tkl.service` |
 | Uppdateringstjänst | `trainmeet-tkl-update.service` |
 | Kioskstart | `~/.config/labwc/autostart` |

@@ -128,8 +128,8 @@ async function managedClient(): Promise<BrowserClient> {
 const requestTimeout = 4000;
 const runtimeCacheKey = "trainmeet-tkl.last-runtime";
 
-class APIError extends Error {
-  constructor(public status: number, message: string) {
+export class APIError extends Error {
+  constructor(public status: number, message: string, public code = "") {
     super(message);
   }
 }
@@ -153,13 +153,20 @@ async function readJSON<T>(url: string, init?: RequestInit): Promise<T> {
     });
     if (!response.ok) {
       let message = `HTTP ${response.status}`;
+      let code = "";
       try {
-        const payload = await response.json() as { message?: string };
+        const payload = await response.json() as { message?: string; error?: string };
         message = payload.message || message;
+        code = typeof payload.error === "string" ? payload.error : "";
       } catch {
         // Keep the HTTP status when the server did not return JSON.
       }
-      throw new APIError(response.status, message);
+      // The terminal's own sign-in ran out (twelve hours): the screen asks
+      // for it again instead of treating the station as lost.
+      if (url.startsWith("/terminal/") && response.status === 401 && code === "authentication_required") {
+        window.dispatchEvent(new Event("trainmeet:session-expired"));
+      }
+      throw new APIError(response.status, message, code);
     }
     return await response.json() as T;
   } finally {
@@ -205,6 +212,77 @@ export async function loginAdmin(email: string, password: string): Promise<AuthS
     body: JSON.stringify({ email: address, username: address, password }),
   });
 }
+
+// ---------------------------------------------------------------- TKL's own accounts
+//
+// Kept by the terminal service (terminal/trainmeet_tkl_terminal.py), apart
+// from TrainMeet Server's accounts. The address is the account; there is no
+// username. At the computer running TKL the signal box needs no sign-in and
+// only the administration does; over the web everything does.
+
+export type AccountRole = "owner" | "admin" | "operator";
+
+export interface AccountUser {
+  user_id: string;
+  display_name: string;
+  email: string;
+  role: AccountRole;
+  password_configured: boolean;
+  invitation_pending: boolean;
+  invitation_expires_at?: string | null;
+}
+
+export interface SessionStatus {
+  /** The terminal service keeps accounts. False in the demo, in the managed browser and against a bare TrainMeet Server. */
+  available: boolean;
+  /** An owner exists. Until then the first start creates one. */
+  configured: boolean;
+  /** The screen stands at the computer running TKL: the signal box needs no sign-in there. */
+  at_the_machine: boolean;
+  /** Everything, the signal box included, needs a signed-in account: TKL over the web. */
+  login_required: boolean;
+  owner_setup_allowed: boolean;
+  user: AccountUser | null;
+}
+
+/** No account layer at all: everything behaves as before accounts existed. */
+export const noAccounts: SessionStatus = { available: false, configured: true, at_the_machine: true, login_required: false, owner_setup_allowed: false, user: null };
+
+/** May open the administration: server, station, pairing, network, update. */
+export const canAdminister = (session: SessionStatus | null): boolean => !session?.available || session.user?.role === "owner" || session.user?.role === "admin";
+/** May run the signal box: free at the machine, a signed-in account over the web. */
+export const mayOperate = (session: SessionStatus | null): boolean => !!session && (!session.available || !session.login_required || !!session.user);
+
+export async function loadSession(): Promise<SessionStatus> {
+  if (isDemoTerminal() || isManagedBrowser()) return noAccounts;
+  try {
+    return { ...(await readJSON<SessionStatus>("/terminal/session")), available: true };
+  } catch {
+    // No terminal service answers here (TKL served straight by TrainMeet
+    // Server, or a service from before accounts existed): nothing to sign in to.
+    return noAccounts;
+  }
+}
+
+const jsonPost = (body: object): RequestInit => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+const signedIn = async (request: Promise<SessionStatus>): Promise<SessionStatus> => ({ ...(await request), available: true });
+
+export const createOwner = (input: { display_name: string; email: string; password: string }) =>
+  signedIn(readJSON<SessionStatus>("/terminal/setup/owner", jsonPost({ ...input, email: input.email.trim() })));
+export const signIn = (email: string, password: string) =>
+  signedIn(readJSON<SessionStatus>("/terminal/login", jsonPost({ email: email.trim(), password })));
+export const signOut = () => signedIn(readJSON<SessionStatus>("/terminal/logout", jsonPost({})));
+export const redeemInvitation = (email: string, code: string, password: string) =>
+  signedIn(readJSON<SessionStatus>("/terminal/redeem", jsonPost({ email: email.trim(), code: code.trim(), password })));
+export const changePassword = (current_password: string, new_password: string) =>
+  readJSON<{ changed: boolean }>("/terminal/password", jsonPost({ current_password, new_password }));
+export const listUsers = () => readJSON<{ users: AccountUser[]; role: AccountRole | null }>("/terminal/users");
+export const inviteUser = (input: { display_name: string; email: string; role: AccountRole }) =>
+  readJSON<{ user: AccountUser; code: string }>("/terminal/users", jsonPost({ ...input, email: input.email.trim() }));
+export const reissueInvitation = (user_id: string) => readJSON<{ user: AccountUser; code: string }>("/terminal/users/reissue", jsonPost({ user_id }));
+export const updateUser = (input: { user_id: string; role?: AccountRole; display_name?: string }) =>
+  readJSON<{ user: AccountUser }>("/terminal/users/update", jsonPost(input));
+export const deleteUser = (user_id: string) => readJSON<{ removed: boolean }>("/terminal/users/delete", jsonPost({ user_id }));
 
 export async function pairTerminal(serverUrl: string, pairingCode: string, terminalName: string): Promise<AuthStatus> {
   return readJSON<AuthStatus>("/terminal/pair", {

@@ -2419,6 +2419,194 @@ select:focus-visible {
   cursor: pointer;
 }
 
+/* TKL:s egna konton: ägaren skapas vid första starten, inloggningen tar
+   e-postadressen, och Användare under Inställningar. Vid datorn kör
+   ställverket utan inloggning; administrationen och TKL via webben kräver
+   ett konto. */
+.account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.login-fields.is-stacked {
+  grid-template-columns: 1fr;
+}
+
+.login-fields.is-stacked label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.account-code {
+  font-family: ui-monospace, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.setup-footnote {
+  margin: 1.5rem 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+}
+
+.secondary-action {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0 1.25rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 9999px;
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondary-action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.secondary-action svg {
+  width: 1rem;
+}
+
+.account-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.account-card details {
+  font-size: 0.8rem;
+}
+
+.account-card summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.account-card .account-form {
+  margin-top: 0.75rem;
+}
+
+.account-card .reconfigure-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.account-card .reconfigure-button svg {
+  width: 1rem;
+}
+
+.users-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.user-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  background: hsl(var(--secondary) / 0.55);
+}
+
+.user-row > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.user-row strong {
+  font-size: 0.875rem;
+}
+
+.user-row small {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.user-row small.is-pending {
+  color: hsl(var(--status-arrival));
+}
+
+.user-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.user-actions select,
+.user-actions button {
+  min-height: 2.25rem;
+  padding: 0 0.65rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.6rem;
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.user-actions button.is-danger {
+  color: hsl(var(--destructive));
+}
+
+.role-chip {
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.12);
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.account-code-card {
+  border: 1px solid hsl(var(--primary) / 0.3);
+}
+
+.info-card .account-code-value {
+  margin: 0.5rem 0;
+  color: hsl(var(--foreground));
+  font-family: ui-monospace, Menlo, Monaco, Consolas, monospace;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+}
+
+/* Inloggningen, Skapa ägaren och Parkoppla igen: stationsnamnet på en egen
+   rad under märket, inte i samma rad. */
+.auth-card > .micro-heading {
+  display: block;
+}
+
 /* Förseningar och för tidiga tåg, i den mängd terminalen valt (fem nivåer,
    som på servern): röd bricka med vita siffror, grön för tidigt, liten röd
    text på nivå Diskret, och en rad som just ändrats lyser kort och får "Nyss". */
