@@ -56,6 +56,10 @@
     {"sv": "Koden gäller i sju dagar och kan bara användas en gång.", "en": "The code is valid for seven days and can only be used once.", "da": "Koden gælder i syv dage og kan kun bruges én gang.", "nb": "Koden gjelder i sju dager og kan bare brukes én gang.", "de": "Der Code gilt sieben Tage und kann nur einmal verwendet werden."},
     {"sv": "{name} är nu klarerare", "en": "{name} is now dispatcher", "da": "{name} er nu togleder", "nb": "{name} er nå togleder", "de": "{name} ist jetzt Fahrdienstleiter"},
     {"sv": "Ta bort {name}?", "en": "Remove {name}?", "da": "Fjern {name}?", "nb": "Fjerne {name}?", "de": "{name} entfernen?"},
+    // Förseningar på tågkorten (samma ord som serverns deltagarvy).
+    {sv:'{minutes} min sen',en:'{minutes} min late',da:'{minutes} min forsinket',nb:'{minutes} min forsinket',de:'{minutes} Min. verspätet'},
+    {sv:'beräknad',en:'estimated',da:'beregnet',nb:'beregnet',de:'voraussichtlich'},
+    {sv:'Nyss',en:'Just now',da:'Lige nu',nb:'Nettopp',de:'Gerade eben'},
     // Texts found by the five-language audit (tests/i18n-coverage.test.mjs).
     {"sv": "TrainMeet TKL Terminal", "en": "TrainMeet TKL Terminal", "da": "TrainMeet TKL Terminal", "nb": "TrainMeet TKL Terminal", "de": "TrainMeet TKL Terminal"},
     {"sv": "Demo", "en": "Demo", "da": "Demo", "nb": "Demo", "de": "Demo"},

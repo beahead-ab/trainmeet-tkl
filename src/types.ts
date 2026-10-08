@@ -100,6 +100,8 @@ export interface TrainPosition {
   connection_id?: string | null;
   from_station_id?: string | null;
   to_station_id?: string | null;
+  /** Träffklockans sekunder när tåget avgick, så att det kan röra sig på linjen. */
+  departed_seconds?: number | null;
 }
 
 export interface RuntimeSnapshot {
@@ -120,7 +122,12 @@ export interface RuntimeSnapshot {
     graph_station_order?: string[];
     topology_branch_station_ids?: string[];
     default_theme?: string;
+    /** Träffens förval för hur mycket förseningar som visas, 1–5. */
+    deviation_level?: number;
   };
+  /** Per rörelse: läge och träffklockans tid för ankomst och avgång. */
+  movement_live?: Record<string, { arrival?: string; departure?: string; by_timetable?: boolean; arrived_seconds?: number; departed_seconds?: number }>;
+  calendar?: { start_day: string; day_number: number; weekday: string } | null;
   clock: ClockState;
   train_positions: TrainPosition[];
   server_time?: string;
