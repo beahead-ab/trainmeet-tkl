@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.8.5",
+    "date": "2026-10-08",
+    "notes": [
+      "Textkatalogen synkad med Server: godkännande av klockor"
+    ]
+  },
+  {
     "version": "0.8.4",
     "date": "2026-10-08",
     "notes": [
