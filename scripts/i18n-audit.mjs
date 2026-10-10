@@ -142,17 +142,20 @@ export const IGNORE = new Map([
   ['TKL Demo', 'Demo: the practice meet and terminal name (src/demo.ts), a name.'],
 ]);
 
-export function loadCatalog(root = repo) {
+export function loadCatalog(root = repo, messages = path.join(root, 'src/i18n/messages.js')) {
   const context = {navigator: {languages: []}};
   context.globalThis = context;
   vm.createContext(context);
-  for (const name of ['messages.js', 'workspace-messages.js']) vm.runInContext(fs.readFileSync(path.join(root, 'src/i18n', name), 'utf8'), context);
+  for (const file of [messages, path.join(root, 'src/i18n/workspace-messages.js')]) vm.runInContext(fs.readFileSync(file, 'utf8'), context);
   return context.TrainMeetMessages || {};
 }
 export const lookup = (catalog, source) => catalog[source] || catalog[normalizeKey(source)] || null;
 
-export function auditTkl({root = repo} = {}) {
-  const catalog = loadCatalog(root), files = [];
+// `messages` checks against another copy of Server's catalogue than the one
+// vendored here. Server's audit passes the one it just built, so a row Server
+// drops while TKL still uses it is found before the copy is synced to TKL.
+export function auditTkl({root = repo, messages} = {}) {
+  const catalog = loadCatalog(root, messages), files = [];
   const walk = (dir) => { for (const entry of fs.readdirSync(dir, {withFileTypes: true})) { const file = path.join(dir, entry.name); if (entry.isDirectory()) walk(file); else if (/\.tsx?$/.test(entry.name) && !entry.name.endsWith('.d.ts')) files.push(file); } };
   walk(path.join(root, 'src'));
   const sources = new Map();
