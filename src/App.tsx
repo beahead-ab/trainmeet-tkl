@@ -102,6 +102,17 @@ function TrainMeetLogo() {
   return <img className="trainmeet-logo" src="./trainmeet-logo.png" alt={t("TrainMeet")} />;
 }
 
+/** Stationsskylten och TKL i TMBox-displayens 5×7-punkter, som SERVER och
+ * CLOUD (Casper, 2026-10-10). Punkterna är en mask över textfärgen. */
+function TrainMeetBrand({ label }: { label: string }) {
+  return (
+    <div className="setup-brand" role="img" aria-label={label}>
+      <img className="setup-sign" src="./trainmeet-skylt.svg" alt="" width="119" height="34" />
+      <span className="product-label" aria-hidden="true" />
+    </div>
+  );
+}
+
 const emptyMovement = (): LocalMovementState => ({
   arrival: "none",
   departure: "none",
@@ -267,7 +278,7 @@ function SetupView({ onComplete }: { onComplete: (config: TerminalConfig, snapsh
   return (
     <main className="setup-view">
       <div className="setup-card">
-        <div className="setup-brand"><TrainMeetLogo /><span>{t("TrainMeet TKL Terminal")}</span></div>
+        <TrainMeetBrand label={t("TrainMeet TKL Terminal")} />
         {hosted && <a href="/#workspaces">{t("Byt arbetsyta")}</a>}
         <span className="micro-heading">{t("Första starten")}</span>
         <h1>{t("Koppla terminalen till stationen")}</h1>
@@ -461,7 +472,7 @@ function SignInView({ session, terminalConfig, admin, onSignedIn }: {
   return (
     <main className="setup-view auth-view">
       <div className="setup-card auth-card">
-        <div className="setup-brand"><TrainMeetLogo /><span>{t("TrainMeet TKL")}</span></div>
+        <TrainMeetBrand label={t("TrainMeet TKL")} />
         <span className="micro-heading">{terminalConfig?.station_name || terminalConfig?.terminal_name || t("TrainMeet TKL Terminal")}</span>
         <h1>{admin ? t("Logga in som administratör") : t("Logga in för att fortsätta")}</h1>
         <p className="setup-intro">{admin ? t("Inställningarna kräver administratörsinloggning.") : t("TKL via webben kräver inloggning. Logga in med ditt konto för att använda ställverket.")}</p>
@@ -518,7 +529,7 @@ function CreateOwnerView({ session, terminalConfig, onCreated }: {
   return (
     <main className="setup-view auth-view">
       <div className="setup-card auth-card">
-        <div className="setup-brand"><TrainMeetLogo /><span>{t("TrainMeet TKL")}</span></div>
+        <TrainMeetBrand label={t("TrainMeet TKL")} />
         <span className="micro-heading">{terminalConfig?.terminal_name || t("Första starten")}</span>
         <h1>{t("Skapa ägaren")}</h1>
         <p className="setup-intro">{t("Ingen ägare finns än. Ägaren är den som lägger till och tar bort användare; en administratör sköter hela TKL men inte vilka som har tillgång.")}</p>
@@ -733,7 +744,7 @@ function AuthenticationView({
   return (
     <main className="setup-view auth-view">
       <div className="setup-card auth-card">
-        <div className="setup-brand"><TrainMeetLogo /><span>{t("TrainMeet TKL")}</span></div>
+        <TrainMeetBrand label={t("TrainMeet TKL")} />
         {isHostedBrowser() && <a href="/#workspaces">{t("Byt arbetsyta")}</a>}
         <span className="micro-heading">{terminalConfig.station_name || terminalConfig.terminal_name}</span>
         <h1>{status.access_mode === "terminal" ? t("Parkoppla terminalen igen") : t("Logga in för att fortsätta")}</h1>
@@ -805,7 +816,7 @@ function ShiftStartView({
   return (
     <main className="shift-start-view">
       <div className="shift-start-card">
-        <div className="setup-brand"><TrainMeetLogo /><span>{t("TrainMeet TKL")}</span></div>
+        <TrainMeetBrand label={t("TrainMeet TKL")} />
         <span className="micro-heading">{context.meet.name} · {context.active_day}</span>
         <h1>{t("Ta {station} i tjänst", {station: context.station.name})}</h1>
         <p className="setup-intro">{t("Kontrollera sammanhanget och starta ett trafikpass innan några tågrörelser hanteras.")}</p>
