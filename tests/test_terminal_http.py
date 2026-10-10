@@ -132,7 +132,8 @@ class TerminalHTTPTests(unittest.TestCase):
 
     def test_shift_movement_and_line_actions_reach_the_server(self):
         self.pair()
-        for action in ("shift/start", "movement", "line", "shift/finish"):
+        # automatic: the station left to the automation and taken back (Server 4.1).
+        for action in ("shift/start", "movement", "line", "automatic", "shift/finish"):
             status, result = self.call("POST", f"/terminal/tkl/{action}", {"station_id": "cda"})
             self.assertEqual((200, f"/v1/tkl/{action}"), (status, result["path"]), action)
             self.assertEqual("Bearer token-cda", StandInServer.calls[-1][2])

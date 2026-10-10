@@ -43,6 +43,7 @@ Terminalen har ett avsiktligt tydligt start- och slutläge:
 4. **Ta stationen i tjänst.** Operatören ser serverkontakt, träffklocka, spår, anslutningar, tidtabell och eventuella pågående trafikärenden innan trafikpasset startas.
 5. **Kör trafikpasset.** Pågående ärenden och de närmaste tågen visas direkt. Hela dagens tidtabell finns kvar utfällbar. Tågklarering och tågrörelser sparas centralt på servern.
 6. **Lämna över eller avsluta.** En överlämningsanteckning kan lämnas till nästa operatör. Vid avslut markeras stationen som obemannad och en sammanfattning visas.
+7. **Gå ifrån en stund.** Under Meny lämnar **Lämna till automatiken** stationen till serverns automatik, som ger klart och anmäler tåg medan du är borta. Sidhuvudet visar **Automatik**. **Ta tillbaka stationen** under Meny tar tillbaka den; en trafikåtgärd medan automatiken sköter stationen frågar först om den ska tas tillbaka. Kräver TrainMeet Server 4.1 eller senare.
 
 Om en station redan har ett aktivt trafikpass visas det före övertagandet. Operatören måste uttryckligen välja att ta över; inget pågående linjeärende försvinner.
 

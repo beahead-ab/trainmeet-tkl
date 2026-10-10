@@ -41,6 +41,15 @@ export interface TklShift {
   updated_at: string;
 }
 
+/** The station left to the automation ("going to the toilet"), from Server 4.1. */
+export interface StationAutomatic {
+  /** False when the automation is switched off in Server (or an older Server). */
+  available: boolean;
+  /** True while the automation works this station. */
+  active: boolean;
+  released_by?: "admin" | "operator" | "lost_contact" | null;
+}
+
 export interface TklContext {
   protocol_version: number;
   publication_id: string;
@@ -68,6 +77,8 @@ export interface TklContext {
     updated_at?: string;
   }>;
   connection_states: RuntimeSnapshot["connection_states"];
+  /** Server 4.1 and later; absent from older servers. */
+  automatic?: StationAutomatic;
 }
 
 export interface DiscoveredServer {
@@ -310,6 +321,20 @@ export async function startTklShift(input: {
     body: JSON.stringify(input),
   });
   return response.shift;
+}
+
+/** Leave the station to the automation, or take it back (Server 4.1). */
+export async function setTklAutomatic(input: {
+  meet_generation?: number;
+  station_id: string;
+  automatic: boolean;
+}): Promise<StationAutomatic> {
+  const response = await terminalOrServer<{ automatic: StationAutomatic }>("/terminal/tkl/automatic", "/v1/tkl/automatic", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return response.automatic;
 }
 
 export async function finishTklShift(input: {
