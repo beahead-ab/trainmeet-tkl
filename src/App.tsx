@@ -47,6 +47,7 @@ import {
   loadSession,
   loadTerminalConfig,
   loadTklContext,
+  stableTklTrain,
   loadWifiNetworks,
   loginAdmin,
   mayOperate,
@@ -1435,7 +1436,9 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
   const station = snapshot.stations.find((candidate) => candidate.id === stationId) ?? snapshot.stations[0];
   if (isManagedBrowser() && station.id !== terminalConfig.station_id) return <LoadingView />;
   const tracks = stationTracks(snapshot, station.id);
-  const trackOccupants = stationTrackOccupants(snapshot, station.id, movementState);
+  // Put away after their run ended: off the track diagram (Server 4.2).
+  const stabledHere = new Set([...(snapshot.stabled ?? []), ...Object.keys(tklContext?.stabled ?? {})]);
+  const trackOccupants = stationTrackOccupants(snapshot, station.id, movementState, stabledHere);
   const onLineNumbers = new Set(snapshot.train_positions.filter((position) => position.status === "connection").map((position) => position.train_number));
   const allStationTrains = dedupeTrains(snapshot.trains.filter((train) => train.station_id === station.id));
   const trains = allStationTrains.filter((train) => {
@@ -1519,6 +1522,14 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
       throw new Error(t("Automatiken sköter stationen. Ta tillbaka den först."));
     }
     await changeAutomatic(false);
+  };
+
+  const stableTrain = async (train: TrainRow) => {
+    await takeBackFirst();
+    const stabled = await stableTklTrain({ meet_generation: tklContext.meet_generation, station_id: station.id, movement_id: train.id });
+    setTklContext((current) => current ? { ...current, stabled } : current);
+    setReceipt(t("Tåg {number} är undanställt. Spåret är fritt.", { number: train.train_number }));
+    window.setTimeout(() => setReceipt(null), 6000);
   };
 
   const applyMovement = async (train: TrainRow, key: string, next: LocalMovementState) => {
@@ -1666,6 +1677,8 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
         freightMode={freightMode}
         selected={selectedTrain === train.train_number}
         actionsDisabled={!runtime.connected}
+        stabled={stabledHere.has(train.id)}
+        onStable={tklContext.stabled ? () => stableTrain(train) : undefined}
         onSelect={setSelectedTrain}
         onMovementChange={(next) => applyMovement(train, key, next)}
         onLineRequest={() => requestLineForTrain(train)}

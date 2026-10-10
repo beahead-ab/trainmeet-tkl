@@ -2320,6 +2320,12 @@ select:focus-visible {
   color: hsl(var(--destructive));
 }
 
+/* A plain note beside an action, not a warning. */
+.action-help.is-note {
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted));
+}
+
 @media (max-width: 520px) {
   .setup-card {
     padding: 1.5rem;

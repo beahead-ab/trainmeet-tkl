@@ -22,6 +22,8 @@ type DemoState = {
   movements: Record<string, TklContext["movements"]>;
   /** Stations the demo operator left to the automation. */
   automatic?: Record<string, boolean>;
+  /** Trains put away after their run ended, by whom (as Server 4.2). */
+  stabled?: Record<string, string>;
 };
 function fresh(): DemoState {
   return {
@@ -62,6 +64,9 @@ export function saveDemoConfig(config: Omit<TerminalConfig, "configured">) {
   persist();
   return loadDemoConfig();
 }
+function stabledAt(data: DemoState, stationId: string): Record<string, string> {
+  return Object.fromEntries(Object.entries(data.stabled || {}).filter(([id]) => data.runtime.trains.some(t => t.id === id && t.station_id === stationId)));
+}
 export function demoRequest(path: string, init?: RequestInit): unknown {
   const data = current();
   const url = new URL(path, "http://demo.invalid");
@@ -81,6 +86,7 @@ export function demoRequest(path: string, init?: RequestInit): unknown {
       shift: data.shifts[stationId] || null, previous_shift: data.previous[stationId] || null,
       movements: data.movements[stationId] || {}, connection_states: lines,
       automatic: {available: true, active: Boolean(data.automatic?.[stationId]), released_by: data.automatic?.[stationId] ? "operator" : null},
+      stabled: stabledAt(data, stationId),
     };
     return copy(context);
   }
@@ -115,6 +121,13 @@ export function demoRequest(path: string, init?: RequestInit): unknown {
     const movement: TklContext["movements"][string] = {arrival: payload.arrival as "none" | "approaching" | "arrived", departure: payload.departure as "none" | "positioned" | "ready" | "departed", actualTrack: track, updated_at: now};
     (data.movements[stationId] ||= {})[train.id] = movement;
     result = {movement};
+  } else if (url.pathname === "/v1/tkl/stable") {
+    const train = data.runtime.trains.find(t => t.id === payload.movement_id && t.station_id === stationId);
+    if (!train || train.departure_time) throw new Error("Tåget slutar inte här.");
+    if (data.movements[stationId]?.[train.id]?.arrival !== "arrived") throw new Error("Tåget har inte kommit in.");
+    (data.stabled ||= {})[train.id] = "demo-local";
+    data.runtime.stabled = Object.keys(data.stabled);
+    result = {stabled: stabledAt(data, stationId)};
   } else if (url.pathname === "/v1/tkl/line") {
     const line = data.runtime.connection_states.find(l => l.id === payload.connection_id);
     const train = String(payload.train_number || "");

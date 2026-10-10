@@ -29,6 +29,10 @@ interface TrainCardProps {
   freightMode: boolean;
   selected: boolean;
   actionsDisabled?: boolean;
+  /** The train ended its run here and is put away (Server 4.2). */
+  stabled?: boolean;
+  /** Put the train away; absent where the server cannot (before 4.2). */
+  onStable?: () => Promise<void>;
   onSelect: (trainNumber: string) => void;
   onMovementChange: (next: LocalMovementState) => void | Promise<void>;
   onLineRequest: () => Promise<"pending" | "confirmed">;
@@ -142,6 +146,8 @@ export function TrainCard({
   freightMode,
   selected,
   actionsDisabled = false,
+  stabled = false,
+  onStable,
   onSelect,
   onMovementChange,
   onLineRequest,
@@ -152,7 +158,12 @@ export function TrainCard({
   const neighbors = useMemo(() => routeNeighbors(snapshot, train), [snapshot, train]);
   const from = neighbors.from?.name ?? train.arrival_from;
   const to = neighbors.to?.name ?? train.departure_to;
-  const summary = statusLabel(train, movement, from, to);
+  // A train that ends here (Casper, 2026-10-10: "Ska det ställas åt sidan?"):
+  // once in, the card says so and the operator puts it away, which frees
+  // the track. The timetable's note says what happens to it.
+  const endsHere = Boolean(train.arrival_time && !train.departure_time && !train.no_stop);
+  const toPutAway = endsHere && movement.arrival === "arrived" && !stabled && Boolean(onStable);
+  const summary = stabled ? t("Undanställt") : toPutAway ? t("Slutar här – ställ undan") : statusLabel(train, movement, from, to);
   const trackLabel = movementTrackLabel(snapshot, train, movement);
   const action = nextAction(train, movement);
   const dispatchMode = snapshot.meet.default_dispatch_mode ?? "clearance";
@@ -186,6 +197,20 @@ export function TrainCard({
     }
   };
 
+  const putAway = async () => {
+    if (!onStable || actionsDisabled) return;
+    setBusy(true);
+    setActionError("");
+    try {
+      await onStable();
+      setExpanded(false);
+    } catch (error) {
+      setActionError(t(error instanceof Error ? error.message : "Tåget kunde inte ställas undan."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const requestLine = async () => {
     if (actionsDisabled) return;
     setBusy(true);
@@ -208,7 +233,7 @@ export function TrainCard({
   return (
     <article
       id={`train-${train.id}`}
-      className={`train-card ${statusClass(movement)} ${expanded ? "is-expanded" : ""} ${selected ? "is-selected" : ""} ${mark ? `is-${mark.tone}` : ""} ${updated ? "is-updated" : ""}`}
+      className={`train-card ${stabled ? "is-complete is-stabled" : toPutAway ? "is-warning is-ends-here" : statusClass(movement)} ${expanded ? "is-expanded" : ""} ${selected ? "is-selected" : ""} ${mark ? `is-${mark.tone}` : ""} ${updated ? "is-updated" : ""}`}
     >
       <button
         type="button"
@@ -270,6 +295,15 @@ export function TrainCard({
           </div>
 
           {train.note && <div className="train-note">{renderNote(train.note)}</div>}
+
+          {toPutAway && (
+            <div className="train-actions">
+              <button type="button" className="primary-action" disabled={busy || actionsDisabled} onClick={() => { void putAway(); }}>
+                {busy ? t("Sparar …") : t("Ställ undan")}
+              </button>
+              <span className="action-help is-note">{t("Spåret blir fritt.")}</span>
+            </div>
+          )}
 
           {action && (
             <div className="train-actions">

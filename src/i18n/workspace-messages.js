@@ -133,6 +133,14 @@
     {"sv": "Lämna till automatiken", "en": "Leave to the automation", "da": "Overlad til automatikken", "nb": "Overlat til automatikken", "de": "Der Automatik überlassen"},
     {"sv": "Automatiken sköter {station}. Ta tillbaka stationen?", "en": "The automation runs {station}. Take the station back?", "da": "Automatikken passer {station}. Tag stationen tilbage?", "nb": "Automatikken styrer {station}. Ta stasjonen tilbake?", "de": "Die Automatik führt {station}. Bahnhof zurücknehmen?"},
     {"sv": "Automatiken sköter stationen. Ta tillbaka den först.", "en": "The automation runs the station. Take it back first.", "da": "Automatikken passer stationen. Tag den tilbage først.", "nb": "Automatikken styrer stasjonen. Ta den tilbake først.", "de": "Die Automatik führt den Bahnhof. Nimm ihn zuerst zurück."},
+    {"sv": "Slutar här – ställ undan", "en": "Ends here – put it away", "da": "Slutter her – hensæt", "nb": "Slutter her – hensett", "de": "Endet hier – abstellen"},
+    {"sv": "Ställ undan", "en": "Put away", "da": "Hensæt", "nb": "Hensett", "de": "Abstellen"},
+    {"sv": "Undanställt", "en": "Stabled", "da": "Hensat", "nb": "Hensatt", "de": "Abgestellt"},
+    {"sv": "Spåret blir fritt.", "en": "The track becomes free.", "da": "Sporet bliver frit.", "nb": "Sporet blir ledig.", "de": "Das Gleis wird frei."},
+    {"sv": "Tåget kunde inte ställas undan.", "en": "The train could not be put away.", "da": "Toget kunne ikke hensættes.", "nb": "Toget kunne ikke hensettes.", "de": "Der Zug konnte nicht abgestellt werden."},
+    {"sv": "Tåg {number} är undanställt. Spåret är fritt.", "en": "Train {number} is stabled. The track is free.", "da": "Tog {number} er hensat. Sporet er frit.", "nb": "Tog {number} er hensatt. Sporet er ledig.", "de": "Zug {number} ist abgestellt. Das Gleis ist frei."},
+    {"sv": "Tåget slutar inte här.", "en": "The train does not end here.", "da": "Toget slutter ikke her.", "nb": "Toget slutter ikke her.", "de": "Der Zug endet nicht hier."},
+    {"sv": "Tåget har inte kommit in.", "en": "The train has not arrived.", "da": "Toget er ikke kommet ind.", "nb": "Toget har ikke kommet inn.", "de": "Der Zug ist nicht angekommen."},
   ];
   globalThis.TrainMeetMessages ||= {};
   for(const row of rows) globalThis.TrainMeetMessages[row.sv]=row;

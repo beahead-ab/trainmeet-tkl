@@ -109,3 +109,15 @@ test('position fallback also respects a server-assigned actual track', () => {
     [train.id]: { ...movement, actualTrack: 'track-lek-4' },
   }), []);
 });
+
+test('a train put away after its run ended leaves the track diagram (Server 4.2)', () => {
+  const ending = { id: 'movement-101-cda', station_id: 'cda', train_number: '101', arrival_time: '09:35', departure_time: null, sort_time: '09:35', track: '3' };
+  const terminal = { ...snapshot, trains: [ending] };
+  const arrived = { [ending.id]: { arrival: 'arrived', departure: 'none', lineRequest: 'none' } };
+  assert.deepEqual(stationTrackOccupants(terminal, 'cda', arrived).map((item) => item.trainNumber), ['101'], 'in: it holds track 3');
+  assert.deepEqual(stationTrackOccupants(terminal, 'cda', arrived, new Set([ending.id])), [], 'put away: the track is free');
+  assert.deepEqual(stationTrackOccupants({ ...terminal, stabled: [ending.id] }, 'cda', arrived), [], 'from /v1/display as well');
+  // The server still has it standing at the station; it is not drawn there either.
+  const standing = { ...terminal, stabled: [ending.id], train_positions: [{ train_number: '101', status: 'station', station_id: 'cda' }] };
+  assert.deepEqual(stationTrackOccupants(standing, 'cda', {}), []);
+});

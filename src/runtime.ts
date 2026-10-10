@@ -161,8 +161,10 @@ export function stationTrackOccupants(
   snapshot: RuntimeSnapshot,
   stationId: string,
   movements: Record<string, LocalMovementState>,
+  stabled: ReadonlySet<string> = new Set(snapshot.stabled ?? []),
 ): StationTrackOccupant[] {
-  const stationTrains = dedupeTrains(snapshot.trains.filter((train) => train.station_id === stationId));
+  // A train put away after its run ended no longer holds its track (Server 4.2).
+  const stationTrains = dedupeTrains(snapshot.trains.filter((train) => train.station_id === stationId && !stabled.has(train.id)));
   const byTrack = new Map<string, StationTrackOccupant>();
   const occupiedTrainNumbers = new Set<string>();
 
