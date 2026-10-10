@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.9.3",
+    "date": "2026-10-10",
+    "notes": [
+      "Textkatalogen synkad med Server 4.0.0; auditen tar serverns katalog"
+    ]
+  },
+  {
     "version": "0.9.2",
     "date": "2026-10-09",
     "notes": [
