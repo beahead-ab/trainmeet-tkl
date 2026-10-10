@@ -790,6 +790,7 @@ REQUIRED_ROLE = {
     ("POST", "/terminal/tkl/movement"): "operate",
     ("POST", "/terminal/tkl/line"): "operate",
     ("POST", "/terminal/tkl/automatic"): "operate",
+    ("POST", "/terminal/tkl/stable"): "operate",
     ("GET", "/terminal/discover"): "admin",
     ("GET", "/terminal/update"): "admin",
     ("GET", "/terminal/wifi"): "admin",
@@ -1081,7 +1082,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(HTTPStatus.UNAUTHORIZED, {"message": error_message(error)})
             return
         if path in {"/terminal/tkl/shift/start", "/terminal/tkl/shift/finish", "/terminal/tkl/movement", "/terminal/tkl/line",
-                    "/terminal/tkl/automatic"}:
+                    "/terminal/tkl/automatic", "/terminal/tkl/stable"}:
             try:
                 payload = self.read_json()
                 remote_path = path.removeprefix("/terminal")

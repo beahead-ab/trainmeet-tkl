@@ -79,6 +79,8 @@ export interface TklContext {
   connection_states: RuntimeSnapshot["connection_states"];
   /** Server 4.1 and later; absent from older servers. */
   automatic?: StationAutomatic;
+  /** Server 4.2 and later: this station's trains put away, by whom. */
+  stabled?: Record<string, string>;
 }
 
 export interface DiscoveredServer {
@@ -335,6 +337,20 @@ export async function setTklAutomatic(input: {
     body: JSON.stringify(input),
   });
   return response.automatic;
+}
+
+/** Put away a train that ended its run here and has arrived (Server 4.2). */
+export async function stableTklTrain(input: {
+  meet_generation?: number;
+  station_id: string;
+  movement_id: string;
+}): Promise<Record<string, string>> {
+  const response = await terminalOrServer<{ stabled: Record<string, string> }>("/terminal/tkl/stable", "/v1/tkl/stable", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return response.stabled;
 }
 
 export async function finishTklShift(input: {

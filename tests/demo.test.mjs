@@ -71,3 +71,18 @@ test('the demo station is left to the automation and taken back; a step in betwe
   await api.updateTklMovement(step);
   assert.equal((await api.loadTklContext('demo-a')).movements['demo-101-a'].departure,'positioned');
 });
+test('a demo train that ended here is put away once it has arrived, as on the server',async()=>{
+  globalThis.window={location:{pathname:'/tkl/',search:'?mode=demo',origin:'http://localhost'},sessionStorage:storage(),localStorage:storage(),setTimeout,clearTimeout};
+  globalThis.fetch=()=>{throw new Error('Demo must never fetch');};
+  await api.resetTerminalConfig();
+  await api.saveTerminalConfig({terminal_name:'Demo',server_url:'',station_id:'demo-b',orientation:'portrait'});
+  const scope={meet_generation:1,station_id:'demo-b'};
+  await api.startTklShift({...scope,operator_name:'Tester',terminal_name:'Demo'});
+  assert.deepEqual((await api.loadTklContext('demo-b')).stabled,{});
+  await assert.rejects(api.stableTklTrain({...scope,movement_id:'demo-101-b'}),/inte kommit in/);
+  await assert.rejects(api.stableTklTrain({...scope,movement_id:'demo-402-b'}),/slutar inte här/);
+  await api.updateTklMovement({...scope,movement_id:'demo-101-b',arrival:'arrived',departure:'none',actual_track:'1',event_type:'arrival_arrived'});
+  assert.deepEqual(await api.stableTklTrain({...scope,movement_id:'demo-101-b'}),{'demo-101-b':'demo-local'});
+  assert.deepEqual((await api.loadTklContext('demo-b')).stabled,{'demo-101-b':'demo-local'});
+  assert.deepEqual((await api.loadRuntime()).snapshot.stabled,['demo-101-b']);
+});

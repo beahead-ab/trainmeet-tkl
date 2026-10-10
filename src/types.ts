@@ -126,6 +126,8 @@ export interface RuntimeSnapshot {
     deviation_level?: number;
   };
   /** Per rörelse: läge och träffklockans tid för ankomst och avgång. */
+  /** Server 4.2 and later: movements put away after their run ended. */
+  stabled?: string[];
   movement_live?: Record<string, { arrival?: string; departure?: string; by_timetable?: boolean; arrived_seconds?: number; departed_seconds?: number }>;
   calendar?: {
     start_day: string;
