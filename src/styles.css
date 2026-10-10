@@ -1515,7 +1515,9 @@ select:focus-visible {
 }
 
 .setup-brand {
-  display: inline-flex;
+  /* En egen rad: rubriken och länken under, inte bredvid skylten. */
+  display: flex;
+  width: fit-content;
   align-items: center;
   gap: 0.65rem;
   margin-bottom: 2rem;
@@ -1524,11 +1526,30 @@ select:focus-visible {
   letter-spacing: -0.025em;
 }
 
-.setup-brand .trainmeet-logo {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 0.65rem;
-  object-fit: cover;
+.setup-brand .setup-sign {
+  display: block;
+  height: 34px;
+  width: auto;
+}
+
+/* TKL i TMBox-displayens 5×7-punkter (Servers tools/dot-label.mjs). Bilden
+   är en mask över textfärgen, så punkterna följer temat; de ligger 3 px isär. */
+.product-label {
+  display: block;
+  flex-shrink: 0;
+  width: 51px;
+  height: 21px;
+  background-color: hsl(var(--muted-foreground));
+  -webkit-mask-image: url("./assets/etikett/tkl.svg");
+  mask-image: url("./assets/etikett/tkl.svg");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+
+.setup-card .micro-heading {
+  display: block;
 }
 
 .setup-card h1 {
