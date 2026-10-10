@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.11.0",
+    "date": "2026-10-10",
+    "notes": [
+      "Tåg som slutar här ställs undan från tågkortet"
+    ]
+  },
+  {
     "version": "0.10.1",
     "date": "2026-10-10",
     "notes": [
