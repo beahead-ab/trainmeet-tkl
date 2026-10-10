@@ -292,6 +292,30 @@ select:focus-visible {
   height: 1rem;
 }
 
+/* The station is left to the automation (Server 4.1): a pill beside the
+   clock that opens the menu, where it is taken back. */
+.automatic-pill {
+  display: inline-flex;
+  height: 1.75rem;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0 0.75rem;
+  border: 0;
+  border-radius: 0.45rem;
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.12);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+  cursor: pointer;
+}
+
+.automatic-pill svg {
+  width: 1rem;
+  height: 1rem;
+}
+
 .connection-indicator {
   display: inline-flex;
   align-items: center;
@@ -1355,6 +1379,58 @@ select:focus-visible {
 .active-shift-notice small {
   color: hsl(var(--muted-foreground));
   font-size: 0.75rem;
+}
+
+.automatic-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: hsl(var(--secondary) / 0.55);
+}
+
+.automatic-card.is-active {
+  background: hsl(var(--primary) / 0.12);
+}
+
+.automatic-card svg {
+  width: 1.25rem;
+  color: hsl(var(--primary));
+}
+
+.automatic-card span {
+  display: flex;
+  flex-direction: column;
+}
+
+.automatic-card small {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
+}
+
+.automatic-card button {
+  grid-column: 1 / -1;
+  min-height: 2.75rem;
+  border: 0;
+  border-radius: 0.75rem;
+  color: hsl(var(--primary-foreground));
+  background: hsl(var(--primary));
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.automatic-card button.secondary {
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+}
+
+.automatic-card button:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .handover-note {

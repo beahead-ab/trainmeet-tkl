@@ -4,6 +4,7 @@ import { authenticatedMessage } from "./auth-message";
 import { accessLost } from "./access-lost";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
+  Bot,
   House,
   Check,
   CircleCheckBig,
@@ -56,6 +57,7 @@ import {
   reissueInvitation,
   resetTerminalConfig,
   saveTerminalConfig,
+  setTklAutomatic,
   signIn,
   signOut,
   startTklShift,
@@ -68,6 +70,7 @@ import {
   type RuntimeResult,
   type SessionStatus,
   type TerminalConfig,
+  type StationAutomatic,
   type TklContext,
   type TklShift,
 } from "./api";
@@ -905,10 +908,12 @@ function Header({
   snapshot,
   source,
   freightMode,
+  automatic,
   onFreightToggle,
   onOverlay,
   onHome,
 }: {
+  automatic: boolean;
   station: Station;
   snapshot: RuntimeSnapshot;
   source: RuntimeResult["source"];
@@ -941,6 +946,12 @@ function Header({
           <span className="station-name-long">{station.name}</span>
           <span className="station-name-short">{station.code}</span>
         </h1>
+        {automatic && (
+          <button type="button" className="automatic-pill" onClick={() => onOverlay("menu")} title={t("Automatiken sköter stationen. Ta tillbaka den under Meny.")}>
+            <Bot />
+            {t("Automatik")}
+          </button>
+        )}
         <span className="clock-pill" title={t("Träffklocka, hastighet {speed}×", {speed: snapshot.clock.speed ?? 1})}>
           <Clock3 />
           {formatClock(snapshot.clock.time)}
@@ -1000,7 +1011,11 @@ function OverlayPanel({
   onFinishShift,
   deviationOwn,
   onDeviationChange,
+  automatic,
+  onAutomaticChange,
 }: {
+  automatic?: StationAutomatic;
+  onAutomaticChange: (automatic: boolean) => Promise<void>;
   deviationOwn: string;
   onDeviationChange: (level: string) => void;
   overlay: Exclude<Overlay, null>;
@@ -1023,6 +1038,7 @@ function OverlayPanel({
   const [handoverNote, setHandoverNote] = useState("");
   const [finishingShift, setFinishingShift] = useState(false);
   const [shiftError, setShiftError] = useState("");
+  const [changingAutomatic, setChangingAutomatic] = useState(false);
   useEffect(() => {
     if (overlay !== "settings" || isManagedBrowser() || !canAdminister(session)) return;
     void checkTerminalUpdate().then((status) => {
@@ -1168,6 +1184,19 @@ function OverlayPanel({
               <a href="/#screens">{t("Skärmar")}</a>
               <a href="/#workspaces">{t("Byt arbetsyta")}</a>
             </>}
+            {automatic?.available && (
+              <div className={`automatic-card${automatic.active ? " is-active" : ""}`}>
+                <Bot />
+                <span>
+                  <strong>{t(automatic.active ? "Automatiken sköter stationen" : "Gå ifrån en stund")}</strong>
+                  <small>{t(automatic.active ? "Den ger klart och anmäler tåg själv tills du tar tillbaka den." : "Automatiken ger klart och anmäler tåg medan du är borta.")}</small>
+                </span>
+                <button type="button" className={automatic.active ? "" : "secondary"} disabled={changingAutomatic} onClick={() => {
+                  setChangingAutomatic(true); setShiftError("");
+                  void onAutomaticChange(!automatic.active).catch((error) => setShiftError(t(error instanceof Error ? error.message : "Det gick inte att byta läge."))).finally(() => setChangingAutomatic(false));
+                }}>{t(automatic.active ? "Ta tillbaka stationen" : "Lämna till automatiken")}</button>
+              </div>
+            )}
             <div className="active-operator-card"><UserRound /><span><strong>{shift.operator_name}</strong><small>{t("Trafikpass startat")} {new Date(shift.started_at).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })}</small></span></div>
             <label className="handover-note"><span>{t("Överlämningsanteckning")}</span><textarea value={handoverNote} onChange={(event) => setHandoverNote(event.target.value)} placeholder={t("Valfri information till nästa operatör")} rows={3} /></label>
             {shiftError && <p className="setup-message is-error">{shiftError}</p>}
@@ -1478,7 +1507,22 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
     });
   };
 
+  // Going to the toilet: the station is left to the automation and taken
+  // back from the menu. A traffic step on it asks first (Casper, 2026-10-10).
+  const changeAutomatic = async (automatic: boolean) => {
+    const next = await setTklAutomatic({ meet_generation: tklContext.meet_generation, station_id: station.id, automatic });
+    setTklContext((current) => current ? { ...current, automatic: next } : current);
+  };
+  const takeBackFirst = async () => {
+    if (!tklContext.automatic?.active) return;
+    if (!window.confirm(t("Automatiken sköter {station}. Ta tillbaka stationen?", { station: station.name }))) {
+      throw new Error(t("Automatiken sköter stationen. Ta tillbaka den först."));
+    }
+    await changeAutomatic(false);
+  };
+
   const applyMovement = async (train: TrainRow, key: string, next: LocalMovementState) => {
+    await takeBackFirst();
     const previous = movementState[key] ?? emptyMovement();
     setMovementState((current) => ({ ...current, [key]: next }));
     const eventType = next.departure !== previous.departure
@@ -1528,6 +1572,7 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
   };
 
   const requestLineForTrain = async (train: TrainRow): Promise<"pending" | "confirmed"> => {
+    await takeBackFirst();
     const connection = connectionForTrain(train, "departure");
     if (!connection) throw new Error("Tågets nästa sträcka kunde inte bestämmas.");
     const line = await performTklLineAction({ meet_generation: tklContext.meet_generation, station_id: station.id, connection_id: connection.id, train_number: train.train_number, action: "request" });
@@ -1536,6 +1581,13 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
   };
 
   const handleLineCase = async (lineState: RuntimeSnapshot["connection_states"][number], action: "accept" | "reject" | "cancel" | "arrive") => {
+    try {
+      await takeBackFirst();
+    } catch (error) {
+      setReceipt(t(error instanceof Error ? error.message : "Automatiken sköter stationen. Ta tillbaka den först."));
+      window.setTimeout(() => setReceipt(null), 6000);
+      return;
+    }
     setBusyLineId(lineState.id);
     try {
       const line = await performTklLineAction({ meet_generation: tklContext.meet_generation, station_id: station.id, connection_id: lineState.id, train_number: lineState.train_number || "", action });
@@ -1641,6 +1693,7 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
           snapshot={snapshot}
           source={source}
           freightMode={freightMode}
+          automatic={Boolean(tklContext.automatic?.active)}
           onFreightToggle={() => setFreightMode((value) => !value)}
           onOverlay={(next) => { setOverlay(next); if (next === "settings") void refreshSession(); }}
           onHome={() => { setOverlay(null); setSelectedTrain(null); setFreightMode(false); window.scrollTo({top: 0}); }}
@@ -1727,6 +1780,8 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
           shift={tklContext.shift}
           deviationOwn={deviationOwn}
           onDeviationChange={changeDeviation}
+          automatic={tklContext.automatic}
+          onAutomaticChange={changeAutomatic}
           onFinishShift={async (status, note) => {
             const activeShift = tklContext.shift;
             if (!activeShift) return;

@@ -20,6 +20,8 @@ type DemoState = {
   shifts: Record<string, TklShift>;
   previous: Record<string, TklShift>;
   movements: Record<string, TklContext["movements"]>;
+  /** Stations the demo operator left to the automation. */
+  automatic?: Record<string, boolean>;
 };
 function fresh(): DemoState {
   return {
@@ -78,10 +80,21 @@ export function demoRequest(path: string, init?: RequestInit): unknown {
       preflight: {server_online: true, clock_configured: true, clock_running: false, track_count: 2, connection_count: 1, train_count: 2, open_connection_count: lines.filter(l => l.state !== "free").length},
       shift: data.shifts[stationId] || null, previous_shift: data.previous[stationId] || null,
       movements: data.movements[stationId] || {}, connection_states: lines,
+      automatic: {available: true, active: Boolean(data.automatic?.[stationId]), released_by: data.automatic?.[stationId] ? "operator" : null},
     };
     return copy(context);
   }
   if (init?.method !== "POST" || payload.meet_generation !== 1) throw new Error("Ogiltigt demokommando");
+  if (url.pathname === "/v1/tkl/automatic") {
+    if (typeof payload.automatic !== "boolean") throw new Error("Ogiltigt demokommando");
+    (data.automatic ||= {})[stationId] = payload.automatic;
+    persist();
+    return {automatic: {available: true, active: payload.automatic, released_by: payload.automatic ? "operator" : null}};
+  }
+  // As in Server: a station left to the automation is taken back first.
+  if (data.automatic?.[stationId] && url.pathname !== "/v1/tkl/shift/start" && url.pathname !== "/v1/tkl/shift/finish") {
+    throw new Error("Automatiken sköter stationen. Ta tillbaka den först.");
+  }
   if (url.pathname === "/v1/tkl/shift/start") {
     const shift: TklShift = {shift_id: `demo-${Date.now()}`, operator_name: String(payload.operator_name), terminal_name: String(payload.terminal_name), status: "active", started_at: now, updated_at: now};
     data.shifts[stationId] = shift;

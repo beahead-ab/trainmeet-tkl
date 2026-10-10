@@ -54,3 +54,20 @@ test('standalone demo completes a send/receive journey without network or real p
   assert.equal(demo.loadDemoConfig().configured,false);
   assert.equal(window.localStorage.getItem('trainmeet-tkl.browser-config'),'real-profile-untouched');
 });
+test('the demo station is left to the automation and taken back; a step in between is refused as on the server',async()=>{
+  globalThis.window={location:{pathname:'/tkl/',search:'?mode=demo',origin:'http://localhost'},sessionStorage:storage(),localStorage:storage(),setTimeout,clearTimeout};
+  globalThis.fetch=()=>{throw new Error('Demo must never fetch');};
+  await api.resetTerminalConfig();
+  await api.saveTerminalConfig({terminal_name:'Demo',server_url:'',station_id:'demo-a',orientation:'portrait'});
+  const scope={meet_generation:1,station_id:'demo-a'};
+  await api.startTklShift({...scope,operator_name:'Tester',terminal_name:'Demo'});
+  assert.deepEqual((await api.loadTklContext('demo-a')).automatic,{available:true,active:false,released_by:null});
+  assert.deepEqual(await api.setTklAutomatic({...scope,automatic:true}),{available:true,active:true,released_by:'operator'});
+  assert.equal((await api.loadTklContext('demo-a')).automatic.active,true);
+  const step={...scope,movement_id:'demo-101-a',arrival:'none',departure:'positioned',actual_track:'2',event_type:'departure_positioned'};
+  await assert.rejects(api.updateTklMovement(step),/Ta tillbaka den först/);
+  await assert.rejects(api.performTklLineAction({...scope,connection_id:'demo-line',train_number:'101',action:'request'}),/Ta tillbaka den först/);
+  assert.equal((await api.setTklAutomatic({...scope,automatic:false})).active,false);
+  await api.updateTklMovement(step);
+  assert.equal((await api.loadTklContext('demo-a')).movements['demo-101-a'].departure,'positioned');
+});
