@@ -847,12 +847,14 @@ function ShiftFinishedView({
   shift,
   status,
   completedCount,
+  automatic,
   onContinue,
 }: {
   station: Station;
   shift: TklShift;
   status: "handover" | "closed";
   completedCount: number;
+  automatic?: boolean;
   onContinue: () => void;
 }) {
   return (
@@ -862,7 +864,7 @@ function ShiftFinishedView({
         <span className="micro-heading">{station.code} · {station.name}</span>
         <h1>{status === "handover" ? t("Stationen är överlämnad") : t("Trafikpasset är avslutat")}</h1>
         <p className="setup-intro">{t("{name} hanterade {count} avslutade tågrörelser under det här terminalpasset.", {name: shift.operator_name, count: completedCount})}</p>
-        <div className="shift-summary"><Clock3 /><span><strong>{new Date(shift.started_at).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })}–{new Date().toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })}</strong><small>{status === "handover" ? t("Nästa operatör kan nu ta över.") : t("Stationen är inte längre bemannad i TKL.")}</small></span></div>
+        <div className="shift-summary"><Clock3 /><span><strong>{new Date(shift.started_at).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })}–{new Date().toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })}</strong><small>{status === "handover" ? t("Nästa operatör kan nu ta över.") : automatic ? t("Automatiken sköter stationen nu.") : t("Stationen är inte längre bemannad i TKL.")}</small></span></div>
         <button type="button" className="setup-finish" onClick={onContinue}>{t("Till startsidan")}</button>
       </div>
     </main>
@@ -1042,7 +1044,7 @@ function OverlayPanel({
   session: SessionStatus;
   onSession: (session: SessionStatus) => void;
   shift: TklShift;
-  onFinishShift: (status: "handover" | "closed", note: string) => Promise<void>;
+  onFinishShift: (status: "handover" | "closed", note: string, automatic?: boolean) => Promise<void>;
 }) {
   const [updateStatus, setUpdateStatus] = useState<string>("");
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -1051,6 +1053,10 @@ function OverlayPanel({
   const [finishingShift, setFinishingShift] = useState(false);
   const [shiftError, setShiftError] = useState("");
   const [changingAutomatic, setChangingAutomatic] = useState(false);
+  const endShift = (toAutomatic: boolean) => {
+    setFinishingShift(true); setShiftError("");
+    void onFinishShift("closed", handoverNote, toAutomatic).catch((error) => { setShiftError(t(error instanceof Error ? error.message : "Trafikpasset kunde inte avslutas.")); setFinishingShift(false); });
+  };
   useEffect(() => {
     if (overlay !== "settings" || isManagedBrowser() || !canAdminister(session)) return;
     void checkTerminalUpdate().then((status) => {
@@ -1213,7 +1219,16 @@ function OverlayPanel({
             <label className="handover-note"><span>{t("Överlämningsanteckning")}</span><textarea value={handoverNote} onChange={(event) => setHandoverNote(event.target.value)} placeholder={t("Valfri information till nästa operatör")} rows={3} /></label>
             {shiftError && <p className="setup-message is-error">{shiftError}</p>}
             <button type="button" disabled={finishingShift} onClick={() => { setFinishingShift(true); setShiftError(""); void onFinishShift("handover", handoverNote).catch((error) => { setShiftError(t(error instanceof Error ? error.message : "Överlämningen misslyckades.")); setFinishingShift(false); }); }}>{t("Lämna över stationen")}</button>
-            <button type="button" className="danger-menu-action" disabled={finishingShift} onClick={() => { setFinishingShift(true); setShiftError(""); void onFinishShift("closed", handoverNote).catch((error) => { setShiftError(t(error instanceof Error ? error.message : "Trafikpasset kunde inte avslutas.")); setFinishingShift(false); }); }}>{t("Avsluta trafikpasset")}</button>
+            {/* Ending the shift offers the automation, so the trains do not
+                wait for the next operator (Casper, 2026-10-11). */}
+            {automatic?.available && !automatic.active ? <>
+              <button type="button" className="end-to-automatic" disabled={finishingShift} onClick={() => endShift(true)}>{t("Avsluta och lämna till automatiken")}</button>
+              <button type="button" className="danger-menu-action" disabled={finishingShift} onClick={() => endShift(false)}>{t("Avsluta utan automatik")}</button>
+              <p className="field-hint">{t("Utan automatik väntar tågen vid stationen tills någon tar ett nytt trafikpass.")}</p>
+            </> : <>
+              <button type="button" className="danger-menu-action" disabled={finishingShift} onClick={() => endShift(false)}>{t("Avsluta trafikpasset")}</button>
+              {automatic?.active && <p className="field-hint">{t("Automatiken fortsätter sköta stationen.")}</p>}
+            </>}
             <div className="info-card">
               <strong>{snapshot.meet.name}</strong>
               <p>{snapshot.active_day} {t("· revision")} {snapshot.revision ?? 0}</p>
@@ -1286,7 +1301,7 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
   const [freightMode, setFreightMode] = useState(false);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [receipt, setReceipt] = useState<string | null>(null);
-  const [finishedShift, setFinishedShift] = useState<{ shift: TklShift; status: "handover" | "closed" } | null>(null);
+  const [finishedShift, setFinishedShift] = useState<{ shift: TklShift; status: "handover" | "closed"; automatic?: boolean } | null>(null);
   const [busyLineId, setBusyLineId] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>(() => (window.localStorage.getItem("trainmeet-tkl.theme") as Theme) || "light");
   // TKL's own accounts. Nothing below runs against the terminal until the
@@ -1486,7 +1501,7 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
     setTklContext((current) => current ? { ...current, shift } : current);
   };
 
-  if (finishedShift) return <ShiftFinishedView station={station} shift={finishedShift.shift} status={finishedShift.status} completedCount={archivedTrains.length} onContinue={() => { setFinishedShift(null); setTklContext((current) => current ? { ...current, shift: null } : current); }} />;
+  if (finishedShift) return <ShiftFinishedView station={station} shift={finishedShift.shift} status={finishedShift.status} completedCount={archivedTrains.length} automatic={finishedShift.automatic} onContinue={() => { setFinishedShift(null); setTklContext((current) => current ? { ...current, shift: null } : current); }} />;
   if (!tklContext.shift) return <ShiftStartView context={tklContext} terminalName={terminalConfig.terminal_name} onStart={startShift} />;
 
   const selectStation = (nextStationId: string) => {
@@ -1806,12 +1821,17 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
           onDeviationChange={changeDeviation}
           automatic={tklContext.automatic}
           onAutomaticChange={changeAutomatic}
-          onFinishShift={async (status, note) => {
+          onFinishShift={async (status, note, automatic) => {
             const activeShift = tklContext.shift;
             if (!activeShift) return;
-            await finishTklShift({ meet_generation: tklContext.meet_generation, station_id: station.id, shift_id: activeShift.shift_id, status, note });
+            const finished = await finishTklShift({ meet_generation: tklContext.meet_generation, station_id: station.id, shift_id: activeShift.shift_id, status, note, automatic: Boolean(automatic) });
+            let left = finished.automatic;
+            // A server before 4.3 ignores the choice and answers without it:
+            // leave the station in a second step, as the menu card does.
+            if (automatic && !left) left = await setTklAutomatic({ meet_generation: tklContext.meet_generation, station_id: station.id, automatic: true }).catch(() => undefined);
+            if (left) setTklContext((current) => current ? { ...current, automatic: left } : current);
             setOverlay(null);
-            setFinishedShift({ shift: activeShift, status });
+            setFinishedShift({ shift: activeShift, status, automatic: Boolean(left?.active) });
           }}
         />
       )}

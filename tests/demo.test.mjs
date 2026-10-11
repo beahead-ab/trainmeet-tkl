@@ -86,3 +86,21 @@ test('a demo train that ended here is put away once it has arrived, as on the se
   assert.deepEqual((await api.loadTklContext('demo-b')).stabled,{'demo-101-b':'demo-local'});
   assert.deepEqual((await api.loadRuntime()).snapshot.stabled,['demo-101-b']);
 });
+test('ending the demo shift can leave the station to the automation, as on the server',async()=>{
+  globalThis.window={location:{pathname:'/tkl/',search:'?mode=demo',origin:'http://localhost'},sessionStorage:storage(),localStorage:storage(),setTimeout,clearTimeout};
+  globalThis.fetch=()=>{throw new Error('Demo must never fetch');};
+  await api.resetTerminalConfig();
+  await api.saveTerminalConfig({terminal_name:'Demo',server_url:'',station_id:'demo-a',orientation:'portrait'});
+  const scope={meet_generation:1,station_id:'demo-a'};
+  let shift=await api.startTklShift({...scope,operator_name:'Tester',terminal_name:'Demo'});
+  await assert.rejects(api.finishTklShift({...scope,shift_id:shift.shift_id,status:'handover',automatic:true}),/Ogiltigt/);
+  const ended=await api.finishTklShift({...scope,shift_id:shift.shift_id,status:'closed',automatic:true});
+  assert.equal(ended.shift.status,'closed');
+  assert.deepEqual(ended.automatic,{available:true,active:true,released_by:'operator'});
+  assert.equal((await api.loadTklContext('demo-a')).automatic.active,true);
+  // Without the choice the station stays as it was.
+  await api.setTklAutomatic({...scope,automatic:false});
+  shift=await api.startTklShift({...scope,operator_name:'Tester',terminal_name:'Demo'});
+  const handedOver=await api.finishTklShift({...scope,shift_id:shift.shift_id,status:'handover',automatic:false});
+  assert.equal(handedOver.automatic.active,false);
+});

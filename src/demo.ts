@@ -109,10 +109,15 @@ export function demoRequest(path: string, init?: RequestInit): unknown {
   else if (url.pathname === "/v1/tkl/shift/finish") {
     const shift = data.shifts[stationId];
     if (shift.shift_id !== payload.shift_id || !["handover", "closed"].includes(String(payload.status))) throw new Error("Ogiltigt demopass");
+    // As in Server: ending the shift may leave the station to the automation.
+    if (payload.automatic !== undefined && typeof payload.automatic !== "boolean") throw new Error("Ogiltigt demokommando");
+    if (payload.automatic && payload.status !== "closed") throw new Error("Ogiltigt demokommando");
+    if (payload.automatic) (data.automatic ||= {})[stationId] = true;
     shift.status = payload.status as "handover" | "closed";
     shift.ended_at = now; shift.updated_at = now; shift.handover_note = String(payload.note || "");
     data.previous[stationId] = shift; delete data.shifts[stationId];
-    result = {shift};
+    const active = Boolean(data.automatic?.[stationId]);
+    result = {shift, automatic: {available: true, active, released_by: active ? "operator" : null}};
   } else if (url.pathname === "/v1/tkl/movement") {
     const train = data.runtime.trains.find(t => t.id === payload.movement_id && t.station_id === stationId);
     if (!train || !["none", "approaching", "arrived"].includes(String(payload.arrival)) || !["none", "positioned", "ready", "departed"].includes(String(payload.departure))) throw new Error("Ogiltig demotågrörelse");
