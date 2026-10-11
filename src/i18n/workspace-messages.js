@@ -141,6 +141,14 @@
     {"sv": "Tåg {number} är undanställt. Spåret är fritt.", "en": "Train {number} is stabled. The track is free.", "da": "Tog {number} er hensat. Sporet er frit.", "nb": "Tog {number} er hensatt. Sporet er ledig.", "de": "Zug {number} ist abgestellt. Das Gleis ist frei."},
     {"sv": "Tåget slutar inte här.", "en": "The train does not end here.", "da": "Toget slutter ikke her.", "nb": "Toget slutter ikke her.", "de": "Der Zug endet nicht hier."},
     {"sv": "Tåget har inte kommit in.", "en": "The train has not arrived.", "da": "Toget er ikke kommet ind.", "nb": "Toget har ikke kommet inn.", "de": "Der Zug ist nicht angekommen."},
+    // Avsluta trafikpasset och lämna stationen till automatiken (Casper, 2026-10-11).
+    {"sv": "Avsluta och lämna till automatiken", "en": "End and leave to the automation", "da": "Afslut og overlad til automatikken", "nb": "Avslutt og overlat til automatikken", "de": "Beenden und der Automatik überlassen"},
+    {"sv": "Avsluta utan automatik", "en": "End without the automation", "da": "Afslut uden automatik", "nb": "Avslutt uten automatikk", "de": "Ohne Automatik beenden"},
+    {"sv": "Utan automatik väntar tågen vid stationen tills någon tar ett nytt trafikpass.", "en": "Without the automation, the trains wait at the station until someone starts a new shift.", "da": "Uden automatik venter togene ved stationen, indtil nogen starter en ny vagt.", "nb": "Uten automatikk venter togene ved stasjonen til noen starter en ny vakt.", "de": "Ohne Automatik warten die Züge am Bahnhof, bis jemand eine neue Schicht beginnt."},
+    {"sv": "Automatiken fortsätter sköta stationen.", "en": "The automation keeps running the station.", "da": "Automatikken passer fortsat stationen.", "nb": "Automatikken fortsetter å styre stasjonen.", "de": "Die Automatik führt den Bahnhof weiter."},
+    {"sv": "Automatiken sköter stationen nu.", "en": "The automation runs the station now.", "da": "Automatikken passer stationen nu.", "nb": "Automatikken styrer stasjonen nå.", "de": "Die Automatik führt den Bahnhof jetzt."},
+    {"sv": "Stationen har pågående klareringar eller tåg på linjen och kan inte avslutas", "en": "The station has clearances in progress or trains on the line and cannot be closed", "da": "Stationen har igangværende klareringer eller tog på strækningen og kan ikke afsluttes", "nb": "Stasjonen har pågående klareringer eller tog på linjen og kan ikke avsluttes", "de": "Der Bahnhof hat laufende Freigaben oder Züge auf der Strecke und kann nicht geschlossen werden"},
+    {"sv": "Automatiken är avstängd av administratören.", "en": "The administrator has switched the automation off.", "da": "Administratoren har slået automatikken fra.", "nb": "Administratoren har slått av automatikken.", "de": "Der Administrator hat die Automatik ausgeschaltet."},
   ];
   globalThis.TrainMeetMessages ||= {};
   for(const row of rows) globalThis.TrainMeetMessages[row.sv]=row;

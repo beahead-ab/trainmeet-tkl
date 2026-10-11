@@ -1349,6 +1349,13 @@ select:focus-visible {
   background: hsl(var(--destructive) / 0.08);
 }
 
+/* The main choice when ending the shift: the automation takes the station. */
+.menu-list > .end-to-automatic {
+  color: hsl(var(--primary-foreground));
+  background: hsl(var(--primary));
+  font-weight: 600;
+}
+
 .active-operator-card,
 .shift-summary,
 .active-shift-notice {

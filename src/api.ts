@@ -353,19 +353,21 @@ export async function stableTklTrain(input: {
   return response.stabled;
 }
 
+/** Hand over or end the shift. Ending it with `automatic` also leaves the
+ *  station to the automation, so the trains do not wait (Server 4.3). */
 export async function finishTklShift(input: {
   meet_generation?: number;
   station_id: string;
   shift_id: string;
   status: "handover" | "closed";
   note?: string;
-}): Promise<TklShift> {
-  const response = await terminalOrServer<{ shift: TklShift }>("/terminal/tkl/shift/finish", "/v1/tkl/shift/finish", {
+  automatic?: boolean;
+}): Promise<{ shift: TklShift; automatic?: StationAutomatic }> {
+  return terminalOrServer<{ shift: TklShift; automatic?: StationAutomatic }>("/terminal/tkl/shift/finish", "/v1/tkl/shift/finish", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  return response.shift;
 }
 
 export async function updateTklMovement(input: {

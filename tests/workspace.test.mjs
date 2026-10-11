@@ -24,3 +24,16 @@ test('workspace labels have all five offline translations',()=>{
     }
   }
 });
+test('ending the shift offers the automation first, and says what happens without it',()=>{
+  const menu=source.slice(source.indexOf('overlay === "menu"'));
+  assert.match(menu,/automatic\?\.available && !automatic\.active \?/);
+  const offered=menu.indexOf('t("Avsluta och lämna till automatiken")'),without=menu.indexOf('t("Avsluta utan automatik")');
+  assert.ok(offered>0&&without>offered,'the automation is the first choice');
+  assert.match(menu,/onClick=\{\(\) => endShift\(true\)\}>\{t\("Avsluta och lämna till automatiken"\)\}/);
+  assert.match(menu,/onClick=\{\(\) => endShift\(false\)\}>\{t\("Avsluta utan automatik"\)\}/);
+  assert.match(menu,/t\("Utan automatik väntar tågen vid stationen tills någon tar ett nytt trafikpass\."\)/);
+  assert.match(source,/onFinishShift\("closed", handoverNote, toAutomatic\)/);
+  assert.match(source,/finishTklShift\(\{[^}]*automatic: Boolean\(automatic\)/);
+  // A server before 4.3 answers without the choice: the station is left in a second step.
+  assert.match(source,/if \(automatic && !left\) left = await setTklAutomatic\(\{ meet_generation: tklContext.meet_generation, station_id: station.id, automatic: true \}\)/);
+});
