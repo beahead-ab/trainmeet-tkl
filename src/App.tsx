@@ -1,9 +1,11 @@
 import { t, locale } from "./i18n";
+import { TrainGraphView } from "./TrainGraphView";
 import { DAY_CHANGE_SEEN_KEY, dayChangeNotice, type DayNotice } from "./dayChange";
 import { authenticatedMessage } from "./auth-message";
 import { accessLost } from "./access-lost";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
+  Activity,
   Bot,
   House,
   Check,
@@ -94,7 +96,7 @@ import {
 import type { LocalMovementState, RuntimeSnapshot, Station, TrainRow } from "./types";
 
 type Theme = "light" | "dark" | "grey" | "grey-dark";
-type Overlay = "settings" | "tambox" | "menu" | null;
+type Overlay = "settings" | "tambox" | "menu" | "graph" | null;
 type UiMessage = string | { source: string; values: Record<string, string | number> };
 const messageText = (message: UiMessage) => typeof message === "string" ? t(message) : t(message.source, message.values);
 
@@ -990,6 +992,12 @@ function Header({
           <Gamepad2 />
           <span>{t("TMBox")}</span>
         </button>
+        {(snapshot.services?.length ?? 0) > 0 && (
+          <button type="button" aria-label={t("Tågdiagram")} onClick={() => onOverlay("graph")}>
+            <Activity />
+            <span>{t("Tågdiagram")}</span>
+          </button>
+        )}
       </nav>
     </>
   );
@@ -1803,7 +1811,16 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
         </section>
       </main>
 
-      {overlay && (
+      {overlay === "graph" && (
+        <TrainGraphView
+          snapshot={snapshot}
+          stationId={station.id}
+          nowSeconds={nowSeconds}
+          onClose={() => setOverlay(null)}
+          onSelectTrain={(trainNumber) => { setOverlay(null); selectTrain(trainNumber); }}
+        />
+      )}
+      {overlay && overlay !== "graph" && (
         <OverlayPanel
           overlay={overlay}
           onClose={() => setOverlay(null)}
