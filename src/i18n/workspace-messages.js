@@ -149,6 +149,12 @@
     {"sv": "Automatiken sköter stationen nu.", "en": "The automation runs the station now.", "da": "Automatikken passer stationen nu.", "nb": "Automatikken styrer stasjonen nå.", "de": "Die Automatik führt den Bahnhof jetzt."},
     {"sv": "Stationen har pågående klareringar eller tåg på linjen och kan inte avslutas", "en": "The station has clearances in progress or trains on the line and cannot be closed", "da": "Stationen har igangværende klareringer eller tog på strækningen og kan ikke afsluttes", "nb": "Stasjonen har pågående klareringer eller tog på linjen og kan ikke avsluttes", "de": "Der Bahnhof hat laufende Freigaben oder Züge auf der Strecke und kann nicht geschlossen werden"},
     {"sv": "Automatiken är avstängd av administratören.", "en": "The administrator has switched the automation off.", "da": "Administratoren har slået automatikken fra.", "nb": "Administratoren har slått av automatikken.", "de": "Der Administrator hat die Automatik ausgeschaltet."},
+    {"sv": "Tidsfönster", "en": "Time window", "da": "Tidsvindue", "nb": "Tidsvindu", "de": "Zeitfenster"},
+    {"sv": "2 timmar", "en": "2 hours", "da": "2 timer", "nb": "2 timer", "de": "2 Stunden"},
+    {"sv": "3 timmar", "en": "3 hours", "da": "3 timer", "nb": "3 timer", "de": "3 Stunden"},
+    {"sv": "6 timmar", "en": "6 hours", "da": "6 timer", "nb": "6 timer", "de": "6 Stunden"},
+    {"sv": "Tågdiagrammet behöver tidtabellen från servern.", "en": "The train graph needs the timetable from the server.", "da": "Toggrafen har brug for køreplanen fra serveren.", "nb": "Toggrafen trenger rutetabellen fra serveren.", "de": "Der Bildfahrplan braucht den Fahrplan vom Server."},
+    {"sv": "Stationens linje visas först. Tryck på ett tåg för att öppna dess kort, och på ett stationsnamn för att se dess spår.", "en": "The station's line is shown first. Tap a train to open its card, and a station name to see its tracks.", "da": "Stationens linje vises først. Tryk på et tog for at åbne dets kort, og på et stationsnavn for at se dets spor.", "nb": "Stasjonens linje vises først. Trykk på et tog for å åpne kortet, og på et stasjonsnavn for å se sporene.", "de": "Die Linie des Bahnhofs wird zuerst gezeigt. Tippe auf einen Zug, um seine Karte zu öffnen, und auf einen Bahnhofsnamen, um seine Gleise zu sehen."},
   ];
   globalThis.TrainMeetMessages ||= {};
   for(const row of rows) globalThis.TrainMeetMessages[row.sv]=row;

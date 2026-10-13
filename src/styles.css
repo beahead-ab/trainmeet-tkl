@@ -2755,3 +2755,64 @@ select:focus-visible {
 .line-train { transition: left 900ms linear; }
 @media (prefers-reduced-motion: reduce) { .line-train { transition: none; } }
 .field-hint { margin: -0.25rem 0 0; color: hsl(var(--muted-foreground)); font-size: 0.8rem; }
+
+/* Tågdiagrammet i helskärm (TrainGraphView.tsx, ritat av src/graph/train-graph.js).
+   Tågtypens färg: rött persontåg, blått gods, grönt arbetståg, som på servern. */
+:root { --graph-person: 0 70% 50%; --graph-goods: 220 70% 45%; --graph-work: 142 60% 40%; --graph-now: 38 95% 50%; }
+:root[data-theme="dark"] { --graph-person: 0 65% 62%; --graph-goods: 220 72% 71%; --graph-work: 142 50% 55%; --graph-now: 42 95% 58%; }
+.graph-view { position: fixed; inset: 0; z-index: 110; display: flex; flex-direction: column; background: hsl(var(--background)); color: hsl(var(--foreground)); }
+.graph-view__bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; padding: 0.75rem 1.5rem; border-bottom: 1px solid hsl(var(--border)); }
+.graph-view__title { margin-right: auto; }
+.graph-view__title h2 { margin: 0; font-size: 1.1rem; }
+.graph-view__field { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: hsl(var(--muted-foreground)); }
+.graph-view__field select { font: inherit; color: hsl(var(--foreground)); background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 0.4rem; padding: 0.3rem 0.5rem; }
+.graph-view__toggle { font: inherit; font-weight: 600; color: hsl(var(--foreground)); background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 0.4rem; padding: 0.3rem 0.7rem; cursor: pointer; }
+.graph-view__toggle[aria-pressed="true"] { background: hsl(var(--accent)); border-color: hsl(var(--primary)); }
+.graph-view__body { flex: 1; overflow: auto; padding: 0.5rem 1rem 1rem; }
+.graph-view__body svg { display: block; width: 100%; height: auto; overflow: visible; }
+.graph-view__empty, .graph-view__foot { margin: 0; padding: 0.6rem 1.5rem; font-size: 0.8rem; color: hsl(var(--muted-foreground)); }
+.graph-view__foot { border-top: 1px solid hsl(var(--border)); }
+.tg-past { fill: hsl(var(--muted)); }
+.tg-grid { stroke: hsl(var(--border)); stroke-width: 1; }
+.tg-hour { stroke: hsl(var(--muted-foreground) / 0.45); }
+.tg-half { stroke-dasharray: 3 5; }
+.tg-track { stroke-dasharray: 2 4; }
+.tg-axis { fill: hsl(var(--muted-foreground)); font-size: 12px; font-variant-numeric: tabular-nums; }
+.tg-label { fill: hsl(var(--foreground)); font-size: 13px; font-weight: 500; }
+.tg-code { fill: hsl(var(--muted-foreground)); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.tg-label.is-own, .tg-code.is-own { fill: hsl(var(--primary)); font-weight: 700; text-decoration: underline; }
+.tg-label[role="button"], .tg-code[role="button"] { cursor: pointer; }
+.tg-track-label { fill: hsl(var(--muted-foreground)); font-size: 9.5px; }
+.tg-title { fill: hsl(var(--foreground)); font-size: 12px; font-weight: 600; letter-spacing: 0.02em; }
+.tg-line { fill: none; stroke: hsl(var(--muted-foreground)); stroke-width: 1.5; stroke-linejoin: round; opacity: 0.72; }
+.tg-line.is-person { stroke: hsl(var(--graph-person)); }
+.tg-line.is-goods { stroke: hsl(var(--graph-goods)); }
+.tg-line.is-work { stroke: hsl(var(--graph-work)); }
+.tg-line.is-lit { opacity: 1; stroke-width: 3; }
+.tg-line.lit.sel { stroke: hsl(var(--foreground)); stroke-width: 4; opacity: 1; }
+.tg-hit { fill: none; stroke: transparent; stroke-width: 14; stroke-linejoin: round; pointer-events: stroke; }
+.tg-train { cursor: pointer; }
+.tg-train:hover .tg-line { opacity: 1; stroke-width: 2.5; }
+.tg-train:focus-visible { outline: none; }
+.tg-dwell { stroke-width: 3.5; stroke-linecap: round; opacity: 0.9; }
+.tg-dwell.is-person { stroke: hsl(var(--graph-person)); }
+.tg-dwell.is-goods { stroke: hsl(var(--graph-goods)); }
+.tg-dwell.is-work { stroke: hsl(var(--graph-work)); }
+.tg-name { font-size: 10px; font-weight: 600; fill: hsl(var(--muted-foreground)); paint-order: stroke; stroke: hsl(var(--background)); stroke-width: 3px; stroke-linejoin: round; pointer-events: none; font-variant-numeric: tabular-nums; }
+.tg-name.is-person { fill: hsl(var(--graph-person)); }
+.tg-name.is-goods { fill: hsl(var(--graph-goods)); }
+.tg-name.is-work { fill: hsl(var(--graph-work)); }
+.tg-train:hover .tg-name { fill: hsl(var(--foreground)); }
+.tg-minute { font-size: 9px; fill: hsl(var(--muted-foreground)); paint-order: stroke; stroke: hsl(var(--background)); stroke-width: 2.5px; stroke-linejoin: round; pointer-events: none; font-variant-numeric: tabular-nums; }
+.tg-now { stroke: hsl(var(--graph-now)); stroke-width: 3; }
+.tg-now-box { fill: hsl(var(--graph-now)); }
+.tg-now-text { fill: #1a1200; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tg-tag-box { fill: hsl(var(--graph-goods)); }
+.tg-tag-box.sel { stroke: hsl(var(--foreground)); stroke-width: 2.5; }
+.tg-tag-text { fill: #fff; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tg-tag-box.is-cleared { fill: hsl(var(--card)); stroke: hsl(var(--graph-goods)); stroke-width: 2.5; }
+.tg-tag-text.is-cleared { fill: hsl(var(--graph-goods)); }
+@media (max-width: 640px) {
+  .graph-view__bar { padding: 0.6rem 1rem; gap: 0.4rem 0.6rem; }
+  .graph-view__body { padding: 0.25rem 0.5rem 0.75rem; }
+}
