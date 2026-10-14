@@ -20,3 +20,8 @@ test('the vendored modules are pure: no DOM at load time, no i18n, no storage', 
     assert.doesNotMatch(source, /localStorage|TrainMeetI18n|fetch\(/, file);
   }
 });
+
+test('the vendored markdown.js is byte-identical to the server copy', {skip: !fs.existsSync(server) && 'no sibling server checkout'}, () => {
+  assert.equal(fs.readFileSync(new URL('../src/text/markdown.js', import.meta.url), 'utf8'), fs.readFileSync(new URL('markdown.js', server), 'utf8'),
+    'markdown.js differs from the server: run node tools/sync-i18n.mjs --siblings in the server');
+});

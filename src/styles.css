@@ -2816,3 +2816,34 @@ select:focus-visible {
   .graph-view__bar { padding: 0.6rem 1rem; gap: 0.4rem 0.6rem; }
   .graph-view__body { padding: 0.25rem 0.5rem 0.75rem; }
 }
+
+/* Om trafikspelet: helskärm som tågdiagrammet, texten i en läsbar spalt. */
+.about-view { position: fixed; inset: 0; z-index: 110; display: flex; flex-direction: column; background: hsl(var(--background)); color: hsl(var(--foreground)); }
+.about-view__bar { display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1.5rem; border-bottom: 1px solid hsl(var(--border)); }
+.about-view__title { margin-right: auto; }
+.about-view__title h2 { margin: 0; font-size: 1.1rem; }
+.about-view__tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0.75rem 1.5rem 0; }
+.about-view__tabs button { font: inherit; font-size: 0.85rem; font-weight: 600; color: hsl(var(--foreground)); background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 0.4rem; padding: 0.35rem 0.8rem; cursor: pointer; }
+.about-view__tabs button.is-active { background: hsl(var(--primary)); border-color: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.about-view__body { flex: 1; overflow: auto; padding: 1rem 1.5rem 2rem; }
+.about-view__body > * { max-width: 46rem; }
+.about-view__empty { margin: 0; color: hsl(var(--muted-foreground)); }
+.about-view__station + .about-view__station { margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid hsl(var(--border)); }
+.about-view__station h3 { margin: 0 0 0.4rem; font-size: 1rem; }
+.about-view__station.is-own h3 { color: hsl(var(--primary)); }
+.tm-md { font-size: 0.95rem; line-height: 1.55; overflow-wrap: anywhere; }
+.tm-md > :first-child { margin-top: 0; }
+.tm-md > :last-child { margin-bottom: 0; }
+.tm-md h3, .tm-md h4, .tm-md h5, .tm-md h6 { margin: 1.1em 0 0.35em; line-height: 1.25; }
+.tm-md h3 { font-size: 1.1rem; } .tm-md h4 { font-size: 1rem; } .tm-md h5, .tm-md h6 { font-size: 0.95rem; }
+.tm-md p { margin: 0 0 0.7em; }
+.tm-md ul, .tm-md ol { margin: 0 0 0.7em; padding-left: 1.3em; }
+.tm-md li + li { margin-top: 0.2em; }
+.tm-md hr { border: 0; border-top: 1px solid hsl(var(--border)); margin: 1em 0; }
+.tm-md code { font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; font-size: 0.9em; padding: 0.05em 0.3em; border-radius: 0.25rem; background: hsl(var(--muted)); }
+.tm-md a { color: hsl(var(--primary)); }
+/* Stationens egna instruktioner i huvudvyn, hopfällda tills man vill läsa. */
+.station-instructions { margin-top: 0.5rem; border: 1px solid hsl(var(--border)); border-radius: 0.75rem; background: hsl(var(--v2-card)); }
+.station-instructions summary { padding: 0.7rem 1rem; font-weight: 600; cursor: pointer; }
+.station-instructions__text { padding: 0 1rem 0.85rem; font-size: 0.9rem; }
+@media (max-width: 640px) { .about-view__bar, .about-view__tabs { padding-left: 1rem; padding-right: 1rem; } .about-view__body { padding: 0.9rem 1rem 1.5rem; } }

@@ -458,6 +458,7 @@ class TerminalApplication:
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self.config_path = self.state_dir / "terminal-config.json"
         self.cache_path = self.state_dir / "last-runtime.json"
+        self.about_cache_path = self.state_dir / "last-about.json"
         self.accounts = AccountStore(self.state_dir)
         #: Inloggning för allt, också vid datorn själv: för TKL via webben.
         self.require_login = require_login
@@ -601,6 +602,25 @@ class TerminalApplication:
         cached_at = datetime.now(timezone.utc).isoformat()
         atomic_json_write(self.cache_path, {"snapshot": snapshot, "cached_at": cached_at})
         return snapshot
+
+    def about_result(self) -> dict:
+        """Om trafikspelet: träffens texter ur /v1/about, som är öppen.
+
+        Texterna ändras bara med en ny publicering, så terminalen minns de
+        senaste och visar dem när servern inte kan nås.
+        """
+        try:
+            about = self.server_json("/v1/about", authenticated=False)
+            atomic_json_write(self.about_cache_path, about)
+            return about
+        except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
+            try:
+                cached = json.loads(self.about_cache_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as error:
+                raise RuntimeError("Texterna gick inte att läsa. Försök igen.") from error
+            if not isinstance(cached, dict):
+                raise RuntimeError("Texterna gick inte att läsa. Försök igen.")
+            return cached
 
     def runtime_result(self) -> dict:
         try:
@@ -785,6 +805,7 @@ REQUIRED_ROLE = {
     ("GET", "/terminal/auth"): "operate",
     ("GET", "/terminal/tkl/context"): "operate",
     ("GET", "/terminal/runtime"): "operate",
+    ("GET", "/terminal/about"): "operate",
     ("POST", "/terminal/tkl/shift/start"): "operate",
     ("POST", "/terminal/tkl/shift/finish"): "operate",
     ("POST", "/terminal/tkl/movement"): "operate",
@@ -955,6 +976,12 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(HTTPStatus.OK, self.application.server_json(f"/v1/tkl/context{suffix}"))
             except (HTTPError, URLError, TimeoutError, OSError, ValueError, PermissionError) as error:
                 self.send_json(HTTPStatus.BAD_GATEWAY, {"message": error_message(error)})
+            return
+        if path == "/terminal/about":
+            try:
+                self.send_json(HTTPStatus.OK, self.application.about_result())
+            except RuntimeError as error:
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"message": str(error)})
             return
         if path == "/terminal/runtime":
             try:
