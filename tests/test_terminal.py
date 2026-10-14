@@ -62,6 +62,26 @@ class TerminalApplicationTests(unittest.TestCase):
         self.assertEqual(offline["source"], "cache")
         self.assertEqual(offline["snapshot"], snapshot)
 
+    @patch("terminal.trainmeet_tkl_terminal.urlopen")
+    def test_the_meets_texts_are_read_without_a_token_and_kept_for_offline(self, mocked_urlopen):
+        about = {"meet": {"name": "Värnamo", "language": "sv"}, "about": {"story": "# Tema", "instructions": {"sv": "Ring"}, "program": ""},
+                 "stations": [{"id": "rise", "name": "Rise", "instructions": "Kritisk"}]}
+        mocked_urlopen.return_value = FakeResponse(about)
+        self.application.save_config({"terminal_name": "Rise TKL", "server_url": "http://server.local:8787", "station_id": "rise", "orientation": "portrait"})
+        self.assertEqual(about, self.application.about_result())
+        request = mocked_urlopen.call_args.args[0]
+        self.assertEqual("http://server.local:8787/v1/about", request.full_url)
+        self.assertNotIn("Authorization", request.headers)
+        mocked_urlopen.side_effect = OSError("offline")
+        self.assertEqual(about, self.application.about_result())
+
+    @patch("terminal.trainmeet_tkl_terminal.urlopen")
+    def test_texts_never_read_cannot_be_shown_offline(self, mocked_urlopen):
+        mocked_urlopen.side_effect = OSError("offline")
+        self.application.save_config({"terminal_name": "Rise TKL", "server_url": "http://server.local:8787", "station_id": "rise", "orientation": "portrait"})
+        with self.assertRaisesRegex(RuntimeError, "Texterna gick inte att läsa"):
+            self.application.about_result()
+
     def test_only_http_server_urls_are_accepted(self):
         self.assertEqual(normalize_server_url("server.local:8787"), "http://server.local:8787")
         self.assertEqual(normalize_server_url("file:///etc/passwd"), "")

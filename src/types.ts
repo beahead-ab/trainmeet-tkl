@@ -19,6 +19,8 @@ export interface Station {
   name: string;
   diagram_order?: number;
   is_autonomous?: boolean;
+  /** Stationens egna instruktioner ur Cloud (Om trafikspelet), i Markdown. */
+  instructions?: string;
 }
 
 export interface StationTrack {
@@ -143,6 +145,24 @@ export interface RuntimeSnapshot {
   clock: ClockState;
   train_positions: TrainPosition[];
   server_time?: string;
+  /** Server 4.8 och senare: vad som finns att läsa under Om trafikspelet. */
+  about?: AboutSummary;
+}
+
+export interface AboutSummary {
+  story: boolean;
+  instructions: string[];
+  program: boolean;
+  stations: number;
+  available: boolean;
+}
+
+/** /v1/about: träffens texter, i Markdown. */
+export interface AboutTexts {
+  publication_id?: string;
+  meet: { name: string; language: string };
+  about: { story: string; instructions: Record<string, string>; program: string };
+  stations: { id: string; name: string; code?: string; instructions: string }[];
 }
 
 export interface LocalMovementState {

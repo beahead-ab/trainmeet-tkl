@@ -1,11 +1,13 @@
 import { t, locale } from "./i18n";
 import { TrainGraphView } from "./TrainGraphView";
+import { AboutView, StationInstructions } from "./AboutView";
 import { DAY_CHANGE_SEEN_KEY, dayChangeNotice, type DayNotice } from "./dayChange";
 import { authenticatedMessage } from "./auth-message";
 import { accessLost } from "./access-lost";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   Activity,
+  BookOpen,
   Bot,
   House,
   Check,
@@ -96,7 +98,7 @@ import {
 import type { LocalMovementState, RuntimeSnapshot, Station, TrainRow } from "./types";
 
 type Theme = "light" | "dark" | "grey" | "grey-dark";
-type Overlay = "settings" | "tambox" | "menu" | "graph" | null;
+type Overlay = "settings" | "tambox" | "menu" | "graph" | "about" | null;
 type UiMessage = string | { source: string; values: Record<string, string | number> };
 const messageText = (message: UiMessage) => typeof message === "string" ? t(message) : t(message.source, message.values);
 
@@ -998,6 +1000,12 @@ function Header({
             <span>{t("Tågdiagram")}</span>
           </button>
         )}
+        {snapshot.about?.available && (
+          <button type="button" aria-label={t("Om trafikspelet")} onClick={() => onOverlay("about")}>
+            <BookOpen />
+            <span>{t("Om trafikspelet")}</span>
+          </button>
+        )}
       </nav>
     </>
   );
@@ -1761,6 +1769,8 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
 
         <AttentionQueue snapshot={snapshot} station={station} context={tklContext} busyId={busyLineId} onAction={handleLineCase} />
 
+        <StationInstructions station={station} />
+
         <section className="train-list" aria-label={t("Tågrörelser")}>
           {activeTrains.length === 0 && (
             <div className="empty-state">
@@ -1820,7 +1830,8 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
           onSelectTrain={(trainNumber) => { setOverlay(null); selectTrain(trainNumber); }}
         />
       )}
-      {overlay && overlay !== "graph" && (
+      {overlay === "about" && <AboutView station={station} onClose={() => setOverlay(null)} />}
+      {overlay && overlay !== "graph" && overlay !== "about" && (
         <OverlayPanel
           overlay={overlay}
           onClose={() => setOverlay(null)}

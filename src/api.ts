@@ -1,4 +1,4 @@
-import type { RuntimeSnapshot } from "./types";
+import type { AboutTexts, RuntimeSnapshot } from "./types";
 import { demoRequest, demoSnapshot, loadDemoConfig, saveDemoConfig, resetDemo } from "./demo";
 
 export type RuntimeSource = "server" | "cache" | "demo";
@@ -524,6 +524,14 @@ function remember(snapshot: RuntimeSnapshot) {
   } catch {
     // The terminal gateway keeps a second on-disk cache if browser storage is full.
   }
+}
+
+/** Om trafikspelet: träffens texter. Terminalen hämtar dem via sin gateway,
+ *  som minns dem om servern tappas. */
+export async function loadAbout(): Promise<AboutTexts> {
+  // Demon har inga texter (och visar därför ingen knapp), men svarar ändå.
+  if (isDemoTerminal()) return { meet: { name: demoSnapshot().meet.name, language: "sv" }, about: { story: "", instructions: {}, program: "" }, stations: [] };
+  return terminalOrServer<AboutTexts>("/terminal/about", "/v1/about");
 }
 
 export async function loadRuntime(): Promise<RuntimeResult> {
