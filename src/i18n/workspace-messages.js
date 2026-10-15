@@ -110,6 +110,8 @@
     {"sv": "Åtgärden kunde inte sparas.", "en": "The action could not be saved.", "da": "Handlingen kunne ikke gemmes.", "nb": "Handlingen kunne ikke lagres.", "de": "Die Aktion konnte nicht gespeichert werden."},
     {"sv": "Klareringen kunde inte begäras.", "en": "Clearance could not be requested.", "da": "Der kunne ikke anmodes om køretilladelse.", "nb": "Kjøretillatelse kunne ikke bes om.", "de": "Die Fahrerlaubnis konnte nicht angefordert werden."},
     {"sv": "Okänt spår", "en": "Unknown track", "da": "Ukendt spor", "nb": "Ukjent spor", "de": "Unbekanntes Gleis"},
+    {"sv": "{track} (förslag)", "en": "{track} (suggested)", "da": "{track} (forslag)", "nb": "{track} (forslag)", "de": "{track} (Vorschlag)"},
+    {"sv": "standard", "en": "default", "da": "standard", "nb": "standard", "de": "Standard"},
     {"sv": "Nekad – begär igen", "en": "Refused – request again", "da": "Afvist – anmod igen", "nb": "Avvist – be om igjen", "de": "Abgelehnt – erneut anfordern"},
     {"sv": "Begär klarering", "en": "Request clearance", "da": "Anmod om køretilladelse", "nb": "Be om kjøretillatelse", "de": "Fahrerlaubnis anfordern"},
     {"sv": "Okänd demostation", "en": "Unknown demo station", "da": "Ukendt demostation", "nb": "Ukjent demostasjon", "de": "Unbekannter Demobahnhof"},

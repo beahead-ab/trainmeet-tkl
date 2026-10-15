@@ -1715,6 +1715,7 @@ function TerminalApp({ initialConfig }: { initialConfig?: TerminalConfig } = {})
         train={train}
         movement={movementState[key] ?? emptyMovement()}
         availableTracks={tracks}
+        occupiedTracks={trackOccupants.map((occupant) => occupant.track)}
         defaultExpanded={defaultExpanded}
         freightMode={freightMode}
         selected={selectedTrain === train.train_number}
