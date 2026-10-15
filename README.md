@@ -86,6 +86,57 @@ datorn och ber om ägaren nästa gång administrationen öppnas. Har alla ägare
 låst sig ute tar den som har tillgång till datorn bort `users.json`, så ber
 TKL om en ny ägare.
 
+## TKL på mobil, platta eller dator
+
+TKL är en tjänst som körs på en dator vid stationen, i regel en Raspberry Pi
+med pekskärm, och som visas i en webbläsare. En terminal sköter en station.
+Två sätt att använda en annan enhet:
+
+### Mobil eller platta mot en TKL-terminal
+
+Mobilen eller plattan visar och kör samma station som terminalen, med samma
+trafikpass. Kräver TKL 0.15 eller senare på terminalen.
+
+1. Öppna terminalen för nätet: skapa `/etc/default/trainmeet-tkl` på Pi:n och
+   starta om tjänsten.
+
+   ```bash
+   echo 'TRAINMEET_TKL_BIND=0.0.0.0' | sudo tee /etc/default/trainmeet-tkl
+   sudo systemctl restart trainmeet-tkl
+   ```
+
+2. Ägaren bjuder in den som ska använda mobilen under **Inställningar →
+   Användare** (rollen Klarerare räcker för ställverket). Se
+   [Konton och inloggning](#konton-och-inloggning).
+3. Öppna `http://<terminalens adress>:8790` på mobilen eller plattan och logga
+   in. Adressen visar `hostname -I` på Pi:n.
+
+Från en annan enhet krävs alltid inloggning; vid terminalen kör vem som helst
+ställverket som förut. Filen rörs inte av uppdateringar. Ta bort den och starta
+om tjänsten för att stänga terminalen för nätet igen.
+
+### En vanlig dator som TKL-terminal, utan Pi
+
+Med Node.js 22 och Python 3.12 (provat på Linux; macOS och Windows bör
+fungera på samma sätt):
+
+```bash
+git clone https://github.com/beahead-ab/trainmeet-tkl.git
+cd trainmeet-tkl
+npm ci
+npm run build
+python3 terminal/trainmeet_tkl_terminal.py --web-root dist --state-dir ./tkl-data
+```
+
+Öppna `http://127.0.0.1:8790` i datorns webbläsare och gå igenom första
+starten som på en Pi: ägaren, serverns adress, anslutningskoden från servern
+(Drift → **Anslut ställverk och appar**), stationen och terminalens namn.
+`./tkl-data` håller profilen, kontona och den senaste driftbilden; starta med
+samma katalog nästa gång så öppnas stationen direkt. Wi-Fi och uppdatering
+under Inställningar gäller bara Pi:n; datorn sköter sitt eget nätverk.
+Lägg till `--bind 0.0.0.0` för att också mobiler och plattor på nätet ska nå
+den, med inloggning som ovan.
+
 ## Ladda ner koden
 
 - [Ladda ner senaste koden som ZIP](https://github.com/beahead-ab/trainmeet-tkl/archive/refs/heads/main.zip)
@@ -174,7 +225,7 @@ Konfigurationen i `/var/lib/trainmeet-tkl/terminal-config.json` ligger kvar vid 
 
 | Del | Plats |
 |---|---|
-| Lokalt terminalgränssnitt | `http://127.0.0.1:8790` |
+| Lokalt terminalgränssnitt | `http://127.0.0.1:8790` (också från nätet med `TRAINMEET_TKL_BIND=0.0.0.0` i `/etc/default/trainmeet-tkl`) |
 | Program och byggt UI | `/opt/trainmeet-tkl` |
 | Terminalprofil och cache | `/var/lib/trainmeet-tkl` |
 | Konton och inloggningar | `/var/lib/trainmeet-tkl/users.json`, `sessions.json` |

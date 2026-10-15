@@ -1196,9 +1196,12 @@ def env_flag(name: str) -> bool:
     return os.environ.get(name, "").strip().lower() not in {"", "0", "false", "no", "off"}
 
 
-def main() -> None:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--bind", default="127.0.0.1")
+    # 127.0.0.1: bara kiosken på samma dator. 0.0.0.0 (TRAINMEET_TKL_BIND i
+    # /etc/default/trainmeet-tkl) låter en mobil, platta eller dator på nätet
+    # öppna TKL; den måste då logga in med ett TKL-konto.
+    parser.add_argument("--bind", default=os.environ.get("TRAINMEET_TKL_BIND", "").strip() or "127.0.0.1")
     parser.add_argument("--port", type=int, default=8790)
     parser.add_argument("--web-root", type=Path, default=Path("dist"))
     parser.add_argument("--state-dir", type=Path, default=Path("/var/lib/trainmeet-tkl"))
@@ -1208,7 +1211,11 @@ def main() -> None:
         default=env_flag("TRAINMEET_TKL_REQUIRE_LOGIN"),
         help="kräv inloggning för allt, också ställverket: för TKL som nås via webben",
     )
-    args = parser.parse_args()
+    return parser.parse_args(argv)
+
+
+def main() -> None:
+    args = parse_args()
     server = ThreadingHTTPServer((args.bind, args.port), Handler)
     server.application = TerminalApplication(args.web_root, args.state_dir, require_login=args.require_login)  # type: ignore[attr-defined]
     server.serve_forever()
