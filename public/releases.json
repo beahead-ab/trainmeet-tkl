@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.16.0",
+    "date": "2026-10-16",
+    "notes": [
+      "Spårvalet visar standardspåren och föreslår ett spår"
+    ]
+  },
+  {
     "version": "0.15.0",
     "date": "2026-10-15",
     "notes": [
