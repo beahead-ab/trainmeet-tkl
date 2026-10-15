@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from terminal.trainmeet_tkl_terminal import TerminalApplication, normalize_server_url, split_nmcli_fields
+from terminal.trainmeet_tkl_terminal import TerminalApplication, normalize_server_url, parse_args, split_nmcli_fields
 
 
 class FakeResponse:
@@ -81,6 +81,21 @@ class TerminalApplicationTests(unittest.TestCase):
         self.application.save_config({"terminal_name": "Rise TKL", "server_url": "http://server.local:8787", "station_id": "rise", "orientation": "portrait"})
         with self.assertRaisesRegex(RuntimeError, "Texterna gick inte att läsa"):
             self.application.about_result()
+
+    def test_the_terminal_listens_on_the_machine_unless_the_bind_is_set(self):
+        # TRAINMEET_TKL_BIND i /etc/default/trainmeet-tkl öppnar TKL för mobil,
+        # platta och dator på nätet; de loggar in (se test_terminal_accounts).
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertEqual("127.0.0.1", parse_args([]).bind)
+        with patch.dict("os.environ", {"TRAINMEET_TKL_BIND": " 0.0.0.0 "}):
+            self.assertEqual("0.0.0.0", parse_args([]).bind)
+            self.assertEqual("192.168.1.20", parse_args(["--bind", "192.168.1.20"]).bind, "the flag wins")
+        with patch.dict("os.environ", {"TRAINMEET_TKL_BIND": ""}):
+            self.assertEqual("127.0.0.1", parse_args([]).bind)
+
+    def test_the_service_reads_its_settings_from_etc_default(self):
+        unit = (Path(__file__).resolve().parent.parent / "packaging" / "raspberry-pi" / "trainmeet-tkl.service").read_text(encoding="utf-8")
+        self.assertIn("EnvironmentFile=-/etc/default/trainmeet-tkl", unit)
 
     def test_only_http_server_urls_are_accepted(self):
         self.assertEqual(normalize_server_url("server.local:8787"), "http://server.local:8787")
