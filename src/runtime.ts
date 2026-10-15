@@ -71,6 +71,20 @@ export function stationTracks(snapshot: RuntimeSnapshot, stationId: string): str
   return [...tracks].sort((a, b) => a.localeCompare(b, "sv", { numeric: true }));
 }
 
+/** Spårvalets ordning: tågets spår först, sedan stationens standardspår för
+ * tåget, sedan resten i stationens ordning (Server 4.9). Bara stationens spår. */
+export function trackChoices(available: string[], current: string | null, defaults: string[] = []): string[] {
+  return [...new Set([current, ...defaults, ...available])].filter((track): track is string => !!track && available.includes(track));
+}
+
+/** Spåret ett tåg utan spår i tidtabellen får: stationens första lediga
+ * standardspår, annars det första, som servern väljer det. */
+export function suggestedTrack(train: TrainRow, occupied: Iterable<string>): string | null {
+  const taken = new Set(occupied);
+  const defaults = train.default_tracks ?? [];
+  return defaults.find((track) => !taken.has(track)) ?? defaults[0] ?? null;
+}
+
 export function movementTrackLabel(
   snapshot: RuntimeSnapshot,
   train: TrainRow,

@@ -1,7 +1,7 @@
 import { t } from "../i18n";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, FileText, Package, SendHorizontal } from "lucide-react";
-import { movementTrackLabel, routeNeighbors } from "../runtime";
+import { movementTrackLabel, routeNeighbors, suggestedTrack, trackChoices } from "../runtime";
 import type { DeviationView } from "../trainLive";
 import type {
   DepartureStatus,
@@ -25,6 +25,8 @@ interface TrainCardProps {
   train: TrainRow;
   movement: LocalMovementState;
   availableTracks: string[];
+  /** Spår där ett annat tåg står, för förslaget till ett tåg utan spår. */
+  occupiedTracks?: string[];
   defaultExpanded?: boolean;
   freightMode: boolean;
   selected: boolean;
@@ -142,6 +144,7 @@ export function TrainCard({
   train,
   movement,
   availableTracks,
+  occupiedTracks = [],
   defaultExpanded = false,
   freightMode,
   selected,
@@ -165,6 +168,8 @@ export function TrainCard({
   const toPutAway = endsHere && movement.arrival === "arrived" && !stabled && Boolean(onStable);
   const summary = stabled ? t("Undanställt") : toPutAway ? t("Slutar här – ställ undan") : statusLabel(train, movement, from, to);
   const trackLabel = movementTrackLabel(snapshot, train, movement);
+  // Utan spår i tidtabellen: stationens första lediga standardspår, som servern tar (4.9).
+  const suggestion = trackLabel ? null : suggestedTrack(train, occupiedTracks);
   const action = nextAction(train, movement);
   const dispatchMode = snapshot.meet.default_dispatch_mode ?? "clearance";
   const departureBlocked = action?.departure === "departed"
@@ -254,7 +259,7 @@ export function TrainCard({
         {recent && <span className="tm-recent">{t("Nyss")}</span>}
         <span className="train-direction-track">
           <DirectionIcon train={train} />
-          <span>{trackLabel ?? t("Okänt spår")}</span>
+          <span>{trackLabel ?? (suggestion ? t("{track} (förslag)", { track: suggestion }) : t("Okänt spår"))}</span>
         </span>
         {train.note && !expanded && <FileText className="note-icon" aria-label={t("Tåget har en anteckning")} />}
         <span className="train-summary-text">{summary}</span>
@@ -267,13 +272,15 @@ export function TrainCard({
             <label htmlFor={`track-${train.id}`}>{t("Spår")}</label>
             <select
               id={`track-${train.id}`}
-              value={trackLabel ?? ""}
+              value={trackLabel ?? suggestion ?? ""}
               disabled={actionsDisabled}
               onChange={(event) => onMovementChange({ ...movement, actualTrack: event.target.value })}
             >
-              {!trackLabel && <option value="" disabled>{t("Välj spår")}</option>}
+              {!trackLabel && !suggestion && <option value="" disabled>{t("Välj spår")}</option>}
               {trackLabel && !availableTracks.includes(trackLabel) && <option value={trackLabel} disabled>{trackLabel} {t("(ej tillgängligt)")}</option>}
-              {availableTracks.map((track) => <option key={track}>{track}</option>)}
+              {trackChoices(availableTracks, trackLabel ?? suggestion, train.default_tracks).map((track) => (
+                <option key={track} value={track}>{train.default_tracks?.includes(track) ? `${track} · ${t("standard")}` : track}</option>
+              ))}
             </select>
           </div>
 

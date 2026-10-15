@@ -72,6 +72,8 @@ export interface TrainRow {
   note: string | null;
   manual_sort_order?: number;
   service_id?: string;
+  /** Stationens standardspår för raden, i stationens ordning (Server 4.9). */
+  default_tracks?: string[];
 }
 
 export interface RouteStop {

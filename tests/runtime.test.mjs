@@ -8,7 +8,7 @@ const source = await readFile(new URL('../src/runtime.ts', import.meta.url), 'ut
 const { outputText } = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 });
-const { movementKey, movementTrackLabel, stationTracks, stationTrackOccupants } = await import(
+const { movementKey, movementTrackLabel, stationTracks, stationTrackOccupants, suggestedTrack, trackChoices } = await import(
   `data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`
 );
 
@@ -120,4 +120,21 @@ test('a train put away after its run ended leaves the track diagram (Server 4.2)
   // The server still has it standing at the station; it is not drawn there either.
   const standing = { ...terminal, stabled: [ending.id], train_positions: [{ train_number: '101', status: 'station', station_id: 'cda' }] };
   assert.deepEqual(stationTrackOccupants(standing, 'cda', {}), []);
+});
+
+// Casper 2026-10-15: standardspår per station när tidtabellen saknar spår (Server 4.9).
+test('the track choice puts the train\'s track first, then the station\'s default tracks, then the rest', () => {
+  const available = ['1', '2', '3', '11', '12', '13'];
+  assert.deepEqual(trackChoices(available, '2', ['11', '12', '13']), ['2', '11', '12', '13', '1', '3']);
+  assert.deepEqual(trackChoices(available, null, ['12', '11']), ['12', '11', '1', '2', '3', '13'], 'the station\'s chosen order');
+  assert.deepEqual(trackChoices(available, '9', ['99']), available, 'only the station\'s own tracks');
+  assert.deepEqual(trackChoices(available, null), available);
+});
+
+test('a train without a track is offered the first free default track, as the server takes it', () => {
+  const goods = { ...train, track: '', default_tracks: ['11', '12', '13'] };
+  assert.equal(suggestedTrack(goods, []), '11');
+  assert.equal(suggestedTrack(goods, ['11']), '12');
+  assert.equal(suggestedTrack(goods, ['11', '12', '13']), '11', 'all taken: the first, like an occupied planned track');
+  assert.equal(suggestedTrack({ ...train, track: '' }, []), null, 'no default tracks: nothing to suggest');
 });
