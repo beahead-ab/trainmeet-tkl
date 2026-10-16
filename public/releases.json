@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.16.1",
+    "date": "2026-10-16",
+    "notes": [
+      "Tågdiagrammet visar tågen på det spår de verkligen fick"
+    ]
+  },
+  {
     "version": "0.16.0",
     "date": "2026-10-16",
     "notes": [
