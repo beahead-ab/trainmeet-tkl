@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.16.2",
+    "date": "2026-10-18",
+    "notes": [
+      "Översättningskatalogen från TrainMeet Server 4.12.4"
+    ]
+  },
+  {
     "version": "0.16.1",
     "date": "2026-10-16",
     "notes": [
